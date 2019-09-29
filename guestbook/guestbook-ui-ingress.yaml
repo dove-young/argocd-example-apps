@@ -1,0 +1,13 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: guestbook-ui
+spec:
+  rules:
+  - host: agentavtone-masterone.fyre.ibm.com
+    http:
+      paths:
+      - backend:
+          serviceName: guestbook-ui
+          servicePort: 80
+        path: /guestbook
