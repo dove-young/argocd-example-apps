@@ -1,0 +1,95 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: {{ .Release.Name }}-postgresql
+    name: {{ .Release.Name }}-postgresql
+  name: {{ .Release.Name }}-postgresql
+spec:
+  ports:
+  - name: {{ .Release.Name }}-postgresql
+    port: {{ .Values.postgresql.port }}
+    protocol: TCP
+    targetPort: {{ .Values.postgresql.port }}
+  selector:
+    app: {{ .Release.Name }}-postgresql
+    release: {{ .Release.Name }}
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: {{ .Release.Name }}-postgrest
+    name: {{ .Release.Name }}-postgrest
+  name: {{ .Release.Name }}-postgrest
+spec:
+  ports:
+  - name: {{ .Release.Name }}-postgrest
+    port: {{ .Values.postgrest.port }}
+    protocol: TCP
+    targetPort: {{ .Values.postgrest.port }}
+  selector:
+    app: {{ .Release.Name }}-postgrest
+    release: {{ .Release.Name }}
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: {{ .Release.Name }}-openresty
+    name: {{ .Release.Name }}-openresty
+  name: {{ .Release.Name }}-openresty
+spec:
+  ports:
+  - name: {{ .Release.Name }}-openresty
+    port: {{ .Values.openresty.port }}
+    protocol: TCP
+    targetPort: {{ .Values.openresty.port }}
+  selector:
+    app: {{ .Release.Name }}-openresty
+    release: {{ .Release.Name }}
+  type: ClusterIP
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+  labels:
+    app: {{ .Release.Name }}-openresty
+    release: {{ .Release.Name }}
+  name: {{ .Release.Name }}-openresty
+spec:
+  rules:
+  - host: {{ .Values.full_qualify_proxy_hostname }}
+    http:
+      paths:
+      - backend:
+          serviceName: {{ .Release.Name }}-openresty
+          servicePort: {{ .Values.openresty.port }}
+        path: /{{ .Release.Name }}-{{ .Values.openresty.ingress_path }}
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+  labels:
+    app: {{ .Release.Name }}-postgrest
+    release: {{ .Release.Name }}
+  name: {{ .Release.Name }}-postgrest
+spec:
+  rules:
+  - host: {{ .Values.full_qualify_proxy_hostname }}
+    http:
+      paths:
+      - backend:
+          serviceName: {{ .Release.Name }}-postgrest
+          servicePort: {{ .Values.postgresql.port }}
+        path: /{{ .Release.Name }}-{{ .Values.postgrest.ingress_path }}

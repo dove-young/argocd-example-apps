@@ -1,0 +1,64 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: {{ .Release.Name }}-openresty
+    chart: {{ .Release.Name }}-openresty
+    heritage: Tiller
+    release: {{ .Release.Name }}
+  name: {{ .Release.Name }}-openresty
+spec:
+  progressDeadlineSeconds: 900
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-openresty
+      chart: {{ .Release.Name }}-openresty
+      heritage: Tiller
+      release: {{ .Release.Name }}
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-openresty
+        chart: {{ .Release.Name }}-openresty
+        heritage: Tiller
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+      - image: openresty/openresty:alpine
+        imagePullPolicy: IfNotPresent
+        name: {{ .Release.Name }}-openresty
+        command:
+          - /home/entrypoint.sh
+        ports:
+        - containerPort: 80
+          protocol: TCP
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: FallbackToLogsOnError
+        volumeMounts:
+        - mountPath: /etc/nginx
+          name: config
+        - mountPath: /home
+          name: entrypoint
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      serviceAccount: incident-expose
+      serviceAccountName: incident-expose
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: config
+        configMap:
+          name: {{ .Release.Name }}-openresty-nginx
+          items:
+          - key: nginx.conf
+            path: nginx.conf
+      - name: entrypoint
+        configMap:
+          name: {{ .Release.Name }}-openresty-nginx
+          items:
+          - key: entrypoint.sh
+            path: entrypoint.sh
+            mode: 0755

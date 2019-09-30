@@ -1,0 +1,91 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: {{ .Release.Name }}-postgrest
+    chart: {{ .Release.Name }}-postgrest
+    heritage: Tiller
+    release: {{ .Release.Name }}
+  name: {{ .Release.Name }}-postgrest
+spec:
+  progressDeadlineSeconds: 900
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-postgrest
+      chart: {{ .Release.Name }}-postgrest
+      heritage: Tiller
+      release: {{ .Release.Name }}
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-postgrest
+        chart: {{ .Release.Name }}-postgrest
+        heritage: Tiller
+        release: {{ .Release.Name }}
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: beta.kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+        podAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: NotIn
+                  values:
+                  - {{ .Release.Name }}-postgrest
+                - key: release
+                  operator: NotIn
+                  values:
+                  - {{ .Release.Name }}
+              topologyKey: kubernetes.io/hostname
+            weight: 50
+      containers:
+      - image: postgrest/postgrest:latest
+        imagePullPolicy: IfNotPresent
+        name: {{ .Release.Name }}-postgrest
+        command:
+        - postgrest
+        - /etc/postgrest/config/postgrest.conf
+        ports:
+        - containerPort: {{ .Values.postgrest.port }}
+          protocol: TCP
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          privileged: false
+          readOnlyRootFilesystem: false
+          runAsNonRoot: true
+          runAsUser: 1000
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: FallbackToLogsOnError
+        volumeMounts:
+        - mountPath: /etc/postgrest/config
+          name: config
+          readOnly: true
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: config
+        configMap:
+          name: {{ .Release.Name }}-postgrest-config
+          

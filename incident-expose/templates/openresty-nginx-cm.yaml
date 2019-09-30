@@ -1,0 +1,263 @@
+apiVersion: v1
+data:
+  entrypoint.sh: |
+    #!/bin/sh
+    chmod 777 /usr/local/openresty/nginx
+    /usr/local/openresty/nginx/sbin/nginx -c /etc/nginx/nginx.conf
+  nginx.conf: |
+    worker_processes  1;
+    error_log /dev/stderr info;
+    events {
+        worker_connections 1024;
+    }
+    daemon off;
+    http {
+        log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                          '$status $body_bytes_sent "$http_referer" '
+                          '"$http_user_agent" "$http_x_forwarded_for"';
+        log_format postdata $request_body;
+        access_log logs/access.log main;
+    
+       log_format upstreamlog '[$time_local] $remote_addr - $remote_user - $server_name to: $upstream_addr: $request '
+                              'requst_body: $request_body $http_user_agent" "$http_x_forwarded_for" $status  '
+                              'upstream_response_time $upstream_response_time msec $msec request_time $request_time';
+    
+       log_format /dev/stdout '$duck';
+    
+        server {
+            listen 80;
+            location /icam-db {
+                set $duck "$duck";
+    
+                 proxy_pass http://{{ .Release.Name }}-postgrest.default.svc:3000/incident;
+    #             proxy_pass http://localhost:3000/icam_incident;
+    #             proxy_pass http://localhost:3000/orders;
+                 proxy_set_header     Access-Control-Allow-Origin "*";
+                 proxy_set_header     Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept";
+                 proxy_set_header X-Original-URI $request_uri;
+                 proxy_set_header Authorization "Bearer $duck";
+                 proxy_pass_header Authorization;
+                 proxy_redirect off;
+            }
+            location /postgres {
+                set $duck "";
+                 content_by_lua_block  {
+                    local cjson = require "cjson"
+                    json_obj = ""
+                    local args, err = ngx.req.get_uri_args()
+                    ngx.req.read_body() 
+                    local data = ngx.req.get_body_data()
+                    local tokenstr = args["token"]
+                    ngx.var.duck = tokenstr
+    --                ngx.say(tokenstr)
+                    if data then
+                        local json_data = cjson.decode(data)
+                        local json_text = { info = json_data }
+                        json_obj = cjson.encode (json_text)
+                        res = ngx.location.capture( "/icam-db",
+                            { 
+                                method = ngx.HTTP_POST, body = json_obj,
+                                args = { token = tokenstr },
+                                share_all_vars = true
+                              }
+                             )
+                   end 
+               }
+            }
+            location / {
+                default_type text/html;
+                
+                echo_duplicate 1 $echo_client_request_headers;
+                echo "\r";
+                echo_read_request_body;
+                echo $request_body;
+                access_log logs/postdata.log postdata;
+            }
+            location /alert {
+                default_type text/html;
+                set $duck "";
+                echo_duplicate 1 $echo_client_request_headers;
+                echo "\r";
+                echo_read_request_body;
+                echo $request_body;
+                access_log logs/alert-data.log postdata;
+    
+                content_by_lua_block {
+                    local cjson = require "cjson"
+                    json_obj = ""
+                    local args, err = ngx.req.get_uri_args()
+                    ngx.req.read_body() 
+                    local data = ngx.req.get_body_data()
+                    --local tokenstr = args["token"]
+                    --ngx.var.duck = ngx.decode_base64(args["token"])
+                    ngx.var.duck = args["token"]
+                    ngx.say(tokenstr)
+    
+                    ngx.req.read_body() 
+                    local data = ngx.req.get_body_data()
+                    local json_data = cjson.decode(data)
+                    local incident_id = json_data["id"]
+    --                ngx.say(incident_id)
+                    local json_text = { 
+                        incident_id = incident_id,
+                        info = json_data }
+                    json_obj = cjson.encode (json_text)
+                    
+                     res = ngx.location.capture("/icam-db",
+                         { share_all_vars = true,
+                             method = ngx.HTTP_POST, 
+                                body = json_obj
+                          });
+                 }
+            }
+            location /github/api/v3/repos/icam/icam/issues {
+                default_type text/html;
+                set $duck "";
+                echo_duplicate 1 $echo_client_request_headers;
+                echo "\r";
+                echo_read_request_body;
+                echo $request_body;
+                access_log logs/github-data.log postdata;
+    
+                content_by_lua_block {
+                    local cjson = require "cjson"
+                    json_obj = ""
+                    local args, err = ngx.req.get_uri_args()
+                    ngx.req.read_body() 
+                    local data = ngx.req.get_body_data()
+                    --local tokenstr = args["token"]
+                    --ngx.var.duck = ngx.decode_base64(args["token"])
+                    ngx.var.duck = args["token"]
+                    ngx.say(tokenstr)
+    
+                    ngx.req.read_body() 
+                    local data = ngx.req.get_body_data()
+                    local json_data = cjson.decode(data)
+                    local incident_id = json_data["id"]
+    --                ngx.say(incident_id)
+                    local json_text = { 
+                        incident_id = incident_id,
+                        info = json_data }
+                    json_obj = cjson.encode (json_text)
+                    
+                     res = ngx.location.capture("/icam-db",
+                         { share_all_vars = true,
+                             method = ngx.HTTP_POST, 
+                                body = json_obj
+                          });
+                 }
+            }
+            location /webhook {
+                set $duck "";
+                echo_duplicate 1 $echo_client_request_headers;
+                echo "\r";
+                echo_read_request_body;
+                echo $request_body;
+                access_log logs/webhook-data.log postdata;
+                content_by_lua_block {
+                    local cjson = require "cjson"
+                    json_obj = ""
+                    local args, err = ngx.req.get_uri_args()
+                    ngx.req.read_body()
+                    local data = ngx.req.get_body_data()
+                    --local tokenstr = args["token"]
+                    --ngx.var.duck = ngx.decode_base64(args["token"])
+                    ngx.var.duck = args["token"]
+    
+                    ngx.req.read_body() 
+                    local data = ngx.req.get_body_data()
+                    local json_data = cjson.decode(data)
+                    local incident_id = json_data["id"]
+    --                ngx.say(incident_id)
+                    local json_text = { 
+                        incident_id = incident_id,
+                        info = json_data }
+                    json_obj = cjson.encode (json_text)
+    --                ngx.say(json_obj)
+                     res = ngx.location.capture("/icam-db",
+                         { share_all_vars = true,
+                             method = ngx.HTTP_POST, 
+                             body = json_obj
+                          });
+                 }
+    
+            }
+            location /slack {
+                default_type text/html;
+                set $duck "";
+                echo_duplicate 1 $echo_client_request_headers;
+                echo "\r";
+                echo_read_request_body;
+                echo $request_body;
+                access_log logs/slack-data.log postdata;
+    
+                content_by_lua_block {
+                    local cjson = require "cjson"
+                    json_obj = ""
+                    local args, err = ngx.req.get_uri_args()
+                    ngx.req.read_body() 
+                    local data = ngx.req.get_body_data()
+                    --local tokenstr = args["token"]
+                    --ngx.var.duck = ngx.decode_base64(args["token"])
+                    ngx.var.duck = args["token"]
+                    ngx.say(tokenstr)
+    
+                    ngx.req.read_body() 
+                    local data = ngx.req.get_body_data()
+                    local json_data = cjson.decode(data)
+                    local incident_id = json_data["id"]
+    --                ngx.say(incident_id)
+                    local json_text = { 
+                        incident_id = incident_id,
+                        info = json_data }
+                    json_obj = cjson.encode (json_text)
+                    
+                     res = ngx.location.capture("/icam-db",
+                         { share_all_vars = true,
+                             method = ngx.HTTP_POST, 
+                                body = json_obj
+                          });
+                 }
+            }
+            location /netcool {
+                default_type text/html;
+                set $duck "";
+                echo_duplicate 1 $echo_client_request_headers;
+                echo "\r";
+                echo_read_request_body;
+                echo $request_body;
+                access_log logs/netcool-data.log postdata;
+    
+                content_by_lua_block {
+                    local cjson = require "cjson"
+                    json_obj = ""
+                    local args, err = ngx.req.get_uri_args()
+                    ngx.req.read_body() 
+                    local data = ngx.req.get_body_data()
+                    --local tokenstr = args["token"]
+                    --ngx.var.duck = ngx.decode_base64(args["token"])
+                    ngx.var.duck = args["token"]
+                    ngx.say(tokenstr)
+    
+                    ngx.req.read_body() 
+                    local data = ngx.req.get_body_data()
+                    local json_data = cjson.decode(data)
+                    local incident_id = json_data["id"]
+    --                ngx.say(incident_id)
+                    local json_text = { 
+                        incident_id = incident_id,
+                        info = json_data }
+                    json_obj = cjson.encode (json_text)
+                    
+                     res = ngx.location.capture("/icam-db",
+                         { share_all_vars = true,
+                             method = ngx.HTTP_POST, 
+                                body = json_obj
+                          });
+                 }
+            }
+        }
+    }
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-openresty-nginx

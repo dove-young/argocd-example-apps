@@ -1,0 +1,25 @@
+apiVersion: v1
+data:
+  db-init-sql: |
+    create schema {{ .Values.postgresql.schema }};
+    create table {{ .Values.postgresql.schema }}.icam ( id serial primary key, info json );
+    create role {{ .Values.postgresql.db_role }} nologin;
+    create role {{ .Values.postgresql.username }} noinherit login password '{{ .Values.postgresql.password }}';
+    grant {{ .Values.postgresql.db_role }} to {{ .Values.postgresql.username }};
+    CREATE TABLE {{ .Values.postgresql.schema }}.{{ .Values.postgresql.table_name }}
+    (
+        id serial NOT NULL,
+        {{ .Values.postgresql.table_name }}_id text NOT NULL,
+        info json NOT NULL,
+        PRIMARY KEY (id)
+    )
+    WITH (
+        OIDS = FALSE
+    );
+    ALTER TABLE {{ .Values.postgresql.schema }}.{{ .Values.postgresql.table_name }} OWNER to {{ .Values.postgresql.db_role }};
+    grant usage on schema {{ .Values.postgresql.schema }} to {{ .Values.postgresql.db_role }};
+    grant select on {{ .Values.postgresql.schema }}.{{ .Values.postgresql.table_name }} to {{ .Values.postgresql.db_role }};
+    grant usage, select on sequence {{ .Values.postgresql.schema }}.{{ .Values.postgresql.table_name }}_id_seq to {{ .Values.postgresql.db_role }};
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-postgresql-init

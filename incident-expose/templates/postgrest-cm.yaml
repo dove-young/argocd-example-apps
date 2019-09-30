@@ -1,0 +1,24 @@
+apiVersion: v1
+data:
+  postgrest.conf: |
+    db-uri = "postgres://{{ .Values.postgresql.username }}:{{ .Values.postgresql.password }}@{{ .Release.Name }}-postgresql.{{ .Release.Namespace }}.svc:{{ .Values.postgresql.port }}/postgres"
+    db-schema = "api"
+    db-anon-role = "{{ .Values.postgresql.db_role }}"
+    jwt-secret = "{{ .Values.postgrest.jwt_secret }}"
+    # send logs where the collector can access them
+    log_destination = "stderr"
+
+    # collect stderr output to log files
+    logging_collector = on
+
+    # save logs in pg_log/ under the pg data directory
+    log_directory = "pg_log"
+
+    # (optional) new log file per day
+    log_filename = "postgresql-%Y-%m-%d.log"
+
+    # log every kind of SQL statement
+    log_statement = "all"
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-postgrest-config

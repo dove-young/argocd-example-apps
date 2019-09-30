@@ -1,0 +1,25 @@
+full_qualify_proxy_hostname: agentavtone-masterone.fyre.ibm.com
+
+postgresql:
+  uid: 1000
+  schema: api
+  username: authenticator
+  password: mysecretpassword
+  table_name: incidents
+  db_role:  web_anon
+  port: 5432
+  sql_file: db-init.sql
+  sql_path: /tmp/init-db
+  storage:
+    hostname: "9.46.76.125"
+    capacity: 15Gi
+    local_path: /k8s/data/postgres
+
+postgrest:
+  port: 3000
+  ingress_path: postgrest
+  jwt_secret: cJzKWZRJCFWHbJ6O7RUEebpZWx37BV7i
+
+openresty:
+  port: 80
+  ingress_path: openresty

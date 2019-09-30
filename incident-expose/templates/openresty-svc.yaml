@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: openresty
+    name: openresty
+  name: openresty
+spec:
+  ports:
+  - name: openresty
+    port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app: openresty
+    release: shentu
+  type: ClusterIP
+
+---
+
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+  labels:
+    app: openresty
+    release: shentu
+  name: openresty
+
+spec:
+  rules:
+  - host: agentavtone-masterone.fyre.ibm.com
+    http:
+      paths:
+      - backend:
+          serviceName: openresty
+          servicePort: 80
+        path: /incidents
