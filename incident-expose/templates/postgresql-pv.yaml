@@ -23,7 +23,7 @@ spec:
           operator: In
           values:
           - {{ .Values.postgresql.storage.hostname }}
-  persistentVolumeReclaimPolicy: Retain
+  persistentVolumeReclaimPolicy: {{ .Values.postgresql.storage.policy }}
   storageClassName: {{ .Release.Name }}-local-storage-postgresql
   volumeMode: Filesystem
 
