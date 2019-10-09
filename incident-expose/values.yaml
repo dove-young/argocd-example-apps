@@ -14,7 +14,7 @@ postgresql:
     hostname: "9.46.76.125"
     capacity: 15Gi
     local_path: /k8s/data/postgres
-    policy: Retain
+    policy: Recycle
 
 postgrest:
   port: 3000
