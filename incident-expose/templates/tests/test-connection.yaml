@@ -12,7 +12,7 @@ spec:
         image: 9.46.76.93:5000/alpine:curl
         env:
           - name: TOKEN
-            value: {{ .Values.postgrest.token }}}
+            value: {{ .Values.postgrest.token }}
           - name: payload
             value: {{ .Values.postgresql.sql_path }}
         command: 
