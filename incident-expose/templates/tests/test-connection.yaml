@@ -32,7 +32,7 @@ spec:
       volumes:
       - name: payload
         configMap:
-          name: {{ .Release.Name }}-test-payload
+          name: {{ .Release.Name }}-postgresql-init
           items:
           - key: raw-payload
             path: {{ .Values.postgresql.sql_file }}
