@@ -75,6 +75,7 @@ data:
     curl -v -H "Content-Type: application/json" \
      --data-binary "@$PAYLOAD" \
      {{ .Release.Name }}-{{ .Values.openresty.ingress_path }}.{{ .Values.proxy_ip }}.nip.io/webhook?token=$TOKEN
+     curl {{ .Release.Name }}-{{ .Values.postgrest.ingress_path }}.{{ .Values.proxy_ip }}.nip.io/{{ .Values.postgresql.table_name }} | wc -l
 kind: ConfigMap
 metadata:
   name: {{ .Release.Name }}-postgresql-init
