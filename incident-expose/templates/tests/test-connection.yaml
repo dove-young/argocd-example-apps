@@ -18,8 +18,8 @@ spec:
         command: 
         - sh
         - -c
-        - 'apk update && apk add curl && 'curl -v -H "Content-Type: application/json" -XPOST --data-binary "@payload" 
-           {{ .Release.Name }}-{{ .Values.openresty.ingress_path }}.{{ .Values.proxy_ip }}.nip.io/webhook?token=$TOKEN'
+        - 'apk update && apk add curl && curl -v -H "Content-Type: application/json" -XPOST --data-binary "@payload" \
+             {{ .Release.Name }}-{{ .Values.openresty.ingress_path }}.{{ .Values.proxy_ip }}.nip.io/webhook?token=$TOKEN'
         volumeMounts:
         - mountPath: {{ .Values.postgresql.sql_path }}
           name: payload
