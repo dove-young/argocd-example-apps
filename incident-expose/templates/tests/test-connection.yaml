@@ -36,3 +36,5 @@ spec:
           items:
           - key: raw-payload
             path: {{ .Values.postgresql.sql_file }}
+      dnsPolicy: ClusterFirst
+      restartPolicy: OnFailure            
