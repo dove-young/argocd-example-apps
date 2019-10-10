@@ -89,10 +89,9 @@ metadata:
   name: {{ .Release.Name }}-postgrest
 spec:
   rules:
-  - host: {{ .Values.full_qualify_proxy_hostname }}
+  - host: postgrest.9.46.74.217.nip.io
     http:
       paths:
       - backend:
           serviceName: {{ .Release.Name }}-postgrest
           servicePort: {{ .Values.postgrest.port }}
-        path: /{{ .Release.Name }}-{{ .Values.postgrest.ingress_path }}

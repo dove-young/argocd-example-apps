@@ -20,6 +20,11 @@ data:
     grant usage on schema {{ .Values.postgresql.schema }} to {{ .Values.postgresql.db_role }};
     grant select on {{ .Values.postgresql.schema }}.{{ .Values.postgresql.table_name }} to {{ .Values.postgresql.db_role }};
     grant usage, select on sequence {{ .Values.postgresql.schema }}.{{ .Values.postgresql.table_name }}_id_seq to {{ .Values.postgresql.db_role }};
+    create role todo_user nologin;
+    grant todo_user to authenticator;
+    grant usage on schema api to todo_user;
+    grant all on api.incidents to todo_user;
+    grant usage, select on sequence api.incidents_id_seq to todo_user;
 kind: ConfigMap
 metadata:
   name: {{ .Release.Name }}-postgresql-init

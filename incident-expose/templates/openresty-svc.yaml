@@ -21,8 +21,6 @@ spec:
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
   labels:
     app: openresty
     release: shentu
@@ -30,7 +28,7 @@ metadata:
 
 spec:
   rules:
-  - host: agentavtone-masterone.fyre.ibm.com
+  - host: incident.9.46.74.217.nip.io
     http:
       paths:
       - backend:

@@ -28,10 +28,6 @@ data:
             listen 80;
             location /icam-db {
                 set $duck "$duck";
-                echo_duplicate 1 $echo_client_request_headers;
-                echo "\r";
-                echo_read_request_body;
-                echo $request_body;
                  proxy_pass http://{{ .Release.Name }}-postgrest.{{ .Release.Namespace }}.svc:{{ .Values.postgrest.port }}/{{ .Values.postgresql.table_name }};
                  proxy_set_header     Access-Control-Allow-Origin "*";
                  proxy_set_header     Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept";
