@@ -18,11 +18,12 @@ spec:
         command: 
         - sh
         - -c
-        - 'curl -v -H "Content-Type: application/json" -X POST --data-binary "@payload" {{ .Release.Name }}-{{ .Values.openresty.ingress_path }}.{{ .Values.proxy_ip }}.nip.io/webhook?token=$TOKEN'
+        - '/tmp/test/test.sh && curl -v -H "Content-Type: application/json" -X POST --data-binary "@$payload" {{ .Release.Name }}-{{ .Values.openresty.ingress_path }}.{{ .Values.proxy_ip }}.nip.io/webhook?token=$TOKEN'
         volumeMounts:
         - mountPath: /tmp/test
           name: payload
-          readOnly: true
+        - mountPath: /tmp/test
+          name: script
       securityContext:
         fsGroup: 1000
         runAsNonRoot: true
@@ -35,5 +36,12 @@ spec:
           items:
           - key: raw-payload
             path: raw-payload.json
+      - name: script
+        configMap:
+          name: {{ .Release.Name }}-postgresql-init
+          items:
+          - key: test-sh
+            path: test.sh
+            mode: 0755
       dnsPolicy: ClusterFirst
       restartPolicy: OnFailure            
