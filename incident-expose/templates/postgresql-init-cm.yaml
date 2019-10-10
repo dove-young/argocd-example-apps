@@ -73,7 +73,7 @@ data:
     cat $PAYLOAD
     echo
     curl -v -H "Content-Type: application/json" \
-     -X POST --data-binary "@$PAYLOAD" \
+     --data-binary "@$PAYLOAD" \
      {{ .Release.Name }}-{{ .Values.openresty.ingress_path }}.{{ .Values.proxy_ip }}.nip.io/webhook?token=$TOKEN
 kind: ConfigMap
 metadata:
