@@ -13,14 +13,12 @@ spec:
         env:
           - name: TOKEN
             value: {{ .Values.postgrest.token }}
-          - name: payload
-            value: /tmp/test/raw-payload.json
+          - name: PAYLOAD
+            value: /tmp/payload/raw-payload.json
         command: 
-        - sh
-        - -c
-        - '/tmp/test-sh/test.sh && curl -v -H "Content-Type: application/json" -X POST --data-binary "@$payload" {{ .Release.Name }}-{{ .Values.openresty.ingress_path }}.{{ .Values.proxy_ip }}.nip.io/webhook?token=$TOKEN'
+        - /tmp/test-sh/test.sh
         volumeMounts:
-        - mountPath: /tmp/test
+        - mountPath: /tmp/payload
           name: payload
         - mountPath: /tmp/test-sh
           name: script
