@@ -14,14 +14,13 @@ spec:
           - name: TOKEN
             value: {{ .Values.postgrest.token }}
           - name: payload
-            value: {{ .Values.postgresql.sql_path }}
+            value: /tmp/test/raw-payload.json
         command: 
         - sh
         - -c
-        - 'curl -v -H "Content-Type: application/json" -XPOST --data-binary "@payload" \
-             {{ .Release.Name }}-{{ .Values.openresty.ingress_path }}.{{ .Values.proxy_ip }}.nip.io/webhook?token=$TOKEN'
+        - 'curl -v -H "Content-Type: application/json" -X POST --data-binary "@payload" {{ .Release.Name }}-{{ .Values.openresty.ingress_path }}.{{ .Values.proxy_ip }}.nip.io/webhook?token=$TOKEN'
         volumeMounts:
-        - mountPath: {{ .Values.postgresql.sql_path }}
+        - mountPath: /tmp/test
           name: payload
           readOnly: true
       securityContext:
@@ -35,6 +34,6 @@ spec:
           name: {{ .Release.Name }}-postgresql-init
           items:
           - key: raw-payload
-            path: {{ .Values.postgresql.sql_file }}
+            path: raw-payload.json
       dnsPolicy: ClusterFirst
       restartPolicy: OnFailure            
