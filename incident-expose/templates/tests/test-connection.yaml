@@ -9,7 +9,7 @@ spec:
     spec:
       containers:
       - name: test-db
-        image: alpine:latest
+        image: 9.46.76.93:5000/alpine:curl
         env:
           - name: TOKEN
             value: {{ .Values.postgrest.token }}}
@@ -18,7 +18,7 @@ spec:
         command: 
         - sh
         - -c
-        - 'apk update && apk add curl && curl -v -H "Content-Type: application/json" -XPOST --data-binary "@payload" \
+        - 'curl -v -H "Content-Type: application/json" -XPOST --data-binary "@payload" \
              {{ .Release.Name }}-{{ .Values.openresty.ingress_path }}.{{ .Values.proxy_ip }}.nip.io/webhook?token=$TOKEN'
         volumeMounts:
         - mountPath: {{ .Values.postgresql.sql_path }}
