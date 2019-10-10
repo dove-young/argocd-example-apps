@@ -9,7 +9,7 @@ data:
     CREATE TABLE {{ .Values.postgresql.schema }}.{{ .Values.postgresql.table_name }}
     (
         id serial NOT NULL,
-        {{ .Values.postgresql.table_name }}_id text NOT NULL,
+        incident_id text NOT NULL,
         info json NOT NULL,
         PRIMARY KEY (id)
     )
