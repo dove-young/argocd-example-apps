@@ -18,11 +18,11 @@ spec:
         command: 
         - sh
         - -c
-        - '/tmp/test/test.sh && curl -v -H "Content-Type: application/json" -X POST --data-binary "@$payload" {{ .Release.Name }}-{{ .Values.openresty.ingress_path }}.{{ .Values.proxy_ip }}.nip.io/webhook?token=$TOKEN'
+        - '/tmp/test-sh/test.sh && curl -v -H "Content-Type: application/json" -X POST --data-binary "@$payload" {{ .Release.Name }}-{{ .Values.openresty.ingress_path }}.{{ .Values.proxy_ip }}.nip.io/webhook?token=$TOKEN'
         volumeMounts:
         - mountPath: /tmp/test
           name: payload
-        - mountPath: /tmp/test
+        - mountPath: /tmp/test-sh
           name: script
       securityContext:
         fsGroup: 1000
