@@ -58,31 +58,24 @@ spec:
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
   labels:
     app: {{ .Release.Name }}-openresty
     release: {{ .Release.Name }}
   name: {{ .Release.Name }}-openresty
 spec:
   rules:
-  - host: {{ .Values.full_qualify_proxy_hostname }}
+  - host: incident.9.46.74.217.nip.io
     http:
       paths:
       - backend:
           serviceName: {{ .Release.Name }}-openresty
           servicePort: {{ .Values.openresty.port }}
-        path: /{{ .Release.Name }}-{{ .Values.openresty.ingress_path }}
+        
 
 ---
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  annotations:
-    kubernetes.io/ingress.class: "nginx"
-    nginx.ingress.kubernetes.io/rewrite-target: "/"
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
   labels:
     app: {{ .Release.Name }}-postgrest
     release: {{ .Release.Name }}
