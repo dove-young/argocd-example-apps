@@ -64,7 +64,7 @@ metadata:
   name: {{ .Release.Name }}-openresty
 spec:
   rules:
-  - host: incident.9.46.74.217.nip.io
+  - host: {{ .Release.Name }}-{{ .Values.openresty.ingress_path }}.{{ .Values.proxy_ip }}.nip.io
     http:
       paths:
       - backend:
@@ -82,7 +82,7 @@ metadata:
   name: {{ .Release.Name }}-postgrest
 spec:
   rules:
-  - host: postgrest.9.46.74.217.nip.io
+  - host: {{ .Release.Name }}-{{ .Values.postgrest.ingress_path }}.{{ .Values.proxy_ip }}.nip.io
     http:
       paths:
       - backend:
