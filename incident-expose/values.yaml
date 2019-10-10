@@ -20,6 +20,7 @@ postgrest:
   port: 3000
   ingress_path: rest
   jwt_secret: cJzKWZRJCFWHbJ6O7RUEebpZWx37BV7i
+  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoidG9kb191c2VyIn0.pF7fhh4XfCz72LN3YQh-g0GmDy-3vZjQA7AgCD1w9dk
 
 openresty:
   port: 80
