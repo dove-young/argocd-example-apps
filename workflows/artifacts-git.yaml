@@ -1,0 +1,88 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: artifact-alpine-
+spec:
+  entrypoint: artifact-example
+  arguments:
+    parameters:
+    - name: release
+      value: incident-expose
+    - name: openresty-ingress-path
+      value: incident-expose-incidents
+    - name: postgrest-ingress-path
+      value: incident-expose-rest
+    - name: postgresql-table-name
+      value: incidents
+    - name: proxy-ip
+      value: 9.46.74.217
+    - name: docker-context
+      value: "images/alpine-utils/"
+    - name: image
+      value: "9.46.76.93:5000/utils/alpine-utils:latest"
+  volumes:
+  - name: payload
+    configMap:
+      name: incident-expose-postgresql-init
+      items:
+      - key: raw-payload
+        path: raw-payload.json
+  templates:
+  - name: artifact-example
+    steps:
+    - - name: generate-artifact
+        template: build-image
+    - - name: populate
+        template: populate-incident-data
+        arguments:
+          parameters:
+          - name: TOKEN
+            value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoidG9kb191c2VyIn0.pF7fhh4XfCz72LN3YQh-g0GmDy-3vZjQA7AgCD1w9dk"
+    - - name: query
+        template: query-incident-data
+  - name: build-image
+    inputs:
+      artifacts:
+      # Check out the master branch of the argo repo and place it at /src
+      # revision can be anything that git checkout accepts: branch, commit, tag, etc.
+      - name: argo-source
+        path: /src
+        git:
+          repo: https://github.com/dove-young/argocd-example-apps.git
+          revision: "david"
+    container:
+      image: 9.46.76.93:5000/kaniko-project/executor:latest
+      command:
+        - /kaniko/executor
+      args:
+        - --dockerfile=/src/{{workflow.parameters.docker-context}}/Dockerfile
+        - --destination=9.46.76.93:5000/utils/alpine-utils:latest
+        - --context=/src/{{workflow.parameters.docker-context}}
+        - --skip-tls-verify
+        - --digest-file=/dev/termination-log      
+        - --insecure
+        - --insecure-registry=9.46.76.93:5000
+        - --skip-tls-verify-registry=9.46.76.93:5000
+  - name: populate-incident-data
+    inputs:
+      parameters:
+      - name: TOKEN
+    script:
+      image: 9.46.76.93:5000/utils/alpine-utils:latest
+      command: [sh]
+      source: |                                         # Contents of the here-script
+        cat /tmp/payload/raw-payload.json
+        echo
+        curl -v -H "Content-Type: application/json" \
+         --data-binary "@/tmp/payload/raw-payload.json" \
+         {{workflow.parameters.openresty-ingress-path}}.{{workflow.parameters.proxy-ip}}.nip.io/webhook?token={{inputs.parameters.TOKEN}}
+      volumeMounts:
+        - mountPath: /tmp/payload
+          name: payload
+  - name: query-incident-data
+    script:
+      image: 9.46.76.93:5000/utils/alpine-utils:latest
+      command: [sh]
+      source: |
+        curl {{workflow.parameters.postgrest-ingress-path}}.{{workflow.parameters.proxy-ip}}.nip.io/{{workflow.parameters.postgresql-table-name}} | wc -l    
+
