@@ -25,9 +25,22 @@ spec:
       items:
       - key: raw-payload
         path: raw-payload.json
+#  - name: argocd-env-configmap
+#    configMap:
+#      name: argocd-env-configmap
   templates:
   - name: bash-script-example
     steps:
+    - - name: sync-deployment 
+        template: sync-deploy
+        arguments:
+          parameters:
+          - name: application-name
+            value: incident-expose
+          - name: revision
+            value: HEAD
+          - name: flags
+            value: --
     - - name: populate
         template: populate-incident-data
         arguments:
@@ -36,7 +49,37 @@ spec:
             value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoidG9kb191c2VyIn0.pF7fhh4XfCz72LN3YQh-g0GmDy-3vZjQA7AgCD1w9dk"
     - - name: query
         template: query-incident-data
-
+  - name: sync-deploy
+    inputs:
+      parameters:
+      - name: application-name
+      - name: revision
+      - name: flags
+    script:
+      image: argoproj/argocd:v1.2.2
+      env:
+      - name: ARGOCD_SERVER
+        valueFrom:
+          configMapKeyRef:
+            name: argocd-env-configmap
+            key: ARGOCD_SERVER
+      - name: ARGOCD_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: argocd-env-secret
+            key: ARGOCD_USERNAME
+      - name: ARGOCD_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: argocd-env-secret
+            key: ARGOCD_PASSWORD
+      command: ["/bin/bash"]      
+      source: |
+        if [ -z $ARGOCD_AUTH_TOKEN ]; then
+           yes | argocd login $ARGOCD_SERVER --username=$ARGOCD_USERNAME --password=$ARGOCD_PASSWORD;
+        fi
+        argocd app sync {{inputs.parameters.application-name}} --revision {{inputs.parameters.revision}} {{inputs.parameters.flags}}
+        argocd app wait {{inputs.parameters.application-name}} --health {{inputs.parameters.flags}}
   - name: populate-incident-data
     inputs:
       parameters:
