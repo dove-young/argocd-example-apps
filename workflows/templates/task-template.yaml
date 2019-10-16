@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: workflow-template-david
+spec:
+  arguments:
+    parameters:
+    - name: image-kaniko
+      value: 9.46.76.93:5000/kaniko-project/executor:latest    
+  templates:
+  - name: build-image
+    inputs:
+      artifacts:
+      # Check out the master branch of the argo repo and place it at /src
+      # revision can be anything that git checkout accepts: branch, commit, tag, etc.
+      - name: argo-source
+        path: /src
+        git:
+          repo: "{{inputs.parameters.git-repo}}"
+          revision: "{{inputs.parameters.git-revision}}"
+      parameters:
+      - name: image-dest
+      - name: docker-context
+      - name: git-repo
+      - name: git-revision
+    container:
+      image: 9.46.76.93:5000/kaniko-project/executor:latest
+      command:
+        - /kaniko/executor
+      args:
+        - --dockerfile=/src/{{inputs.parameters.docker-context}}/Dockerfile
+        - --destination={{inputs.parameters.image-dest}}
+        - --context=/src/{{inputs.parameters.docker-context}}
+        - --skip-tls-verify
+        - --digest-file=/dev/termination-log      
+        - --insecure
+        - --insecure-registry=9.46.76.93:5000
+        - --skip-tls-verify-registry=9.46.76.93:5000 
