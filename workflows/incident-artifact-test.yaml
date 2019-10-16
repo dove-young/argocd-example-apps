@@ -1,0 +1,125 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: scripts-bash-
+spec:
+  entrypoint: bash-script-example
+  arguments:
+    parameters:
+    - name: docker-context
+      value: "images/alpine-utils/"
+    - name: image
+      value: "9.46.76.93:5000/utils/alpine-utils:latest"
+  volumes:
+  - name: vol
+    emptyDir: {}
+  templates:
+  - name: bash-script-example
+    steps:
+    - - name: generate-artifact
+        template: build-image
+    - - name: sync-deployment 
+        template: sync-deploy
+        arguments:
+          parameters:
+          - name: application-name
+            value: incident-expose
+          - name: revision
+            value: HEAD
+          - name: flags
+            value: --
+    - - name: populate
+        template: populate-incident-data
+        arguments:
+          parameters:
+          - name: TOKEN
+            value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoidG9kb191c2VyIn0.pF7fhh4XfCz72LN3YQh-g0GmDy-3vZjQA7AgCD1w9dk"
+    - - name: query
+        template: query-incident-data
+  - name: build-image
+    inputs:
+      artifacts:
+      # Check out the master branch of the argo repo and place it at /src
+      # revision can be anything that git checkout accepts: branch, commit, tag, etc.
+      - name: argo-source
+        path: /src
+        git:
+          repo: https://github.com/dove-young/argocd-example-apps.git
+          revision: "david"
+    container:
+      image: 9.46.76.93:5000/kaniko-project/executor:latest
+      command:
+        - /kaniko/executor
+      args:
+        - --dockerfile=/src/{{workflow.parameters.docker-context}}/Dockerfile
+        - --destination=9.46.76.93:5000/utils/alpine-utils:latest
+        - --context=/src/{{workflow.parameters.docker-context}}
+        - --skip-tls-verify
+        - --digest-file=/dev/termination-log      
+        - --insecure
+        - --insecure-registry=9.46.76.93:5000
+        - --skip-tls-verify-registry=9.46.76.93:5000
+  - name: sync-deploy
+    inputs:
+      parameters:
+      - name: application-name
+      - name: revision
+      - name: flags
+    script:
+      image: argoproj/argocd:v1.2.2
+      env:
+      - name: ARGOCD_SERVER
+        valueFrom:
+          configMapKeyRef:
+            name: argocd-env-configmap
+            key: ARGOCD_SERVER
+      - name: ARGOCD_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: argocd-env-secret
+            key: ARGOCD_USERNAME
+      - name: ARGOCD_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: argocd-env-secret
+            key: ARGOCD_PASSWORD
+      command: ["/bin/bash"]      
+      source: |
+        if [ -z $ARGOCD_AUTH_TOKEN ]; then
+           yes | argocd login $ARGOCD_SERVER --username=$ARGOCD_USERNAME --password=$ARGOCD_PASSWORD;
+        fi
+        argocd app sync {{inputs.parameters.application-name}} --revision {{inputs.parameters.revision}} {{inputs.parameters.flags}}
+        argocd app wait {{inputs.parameters.application-name}} --health {{inputs.parameters.flags}}
+  - name: populate-incident-data
+    inputs:
+      parameters:
+      - name: TOKEN
+      artifacts:
+      - name: payload
+        path: /tmp/payload/incident-102.json
+        s3:
+          bucket: my-bucket
+          endpoint: argo-artifacts-minio.argo.svc:9000
+          insecure: true
+          key: incidents/incident-102.json
+          accessKeySecret:
+            name: minio-access
+            key: accessKey
+          secretKeySecret:
+            name: minio-access
+            key: secretKey
+    script:
+      image: 9.46.76.93:5000/alpine:curl
+      command: [sh]
+      source: |                                         # Contents of the here-script
+        cat /tmp/payload/incident-102.json
+        echo
+        curl -v -H "Content-Type: application/json" \
+         --data-binary "@/tmp/payload/incident-102.json" \
+         incident-expose-incidents.9.46.74.217.nip.io/webhook?token={{inputs.parameters.TOKEN}}
+  - name: query-incident-data
+    script:
+      image: 9.46.76.93:5000/alpine:curl
+      command: [sh]
+      source: |
+        curl incident-expose-rest.9.46.74.217.nip.io/incidents | jq '.[].incident_id' | wc -l  
