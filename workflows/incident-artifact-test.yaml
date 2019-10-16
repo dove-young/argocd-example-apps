@@ -109,7 +109,7 @@ spec:
             name: minio-access
             key: secretKey
     script:
-      image: 9.46.76.93:5000/alpine:curl
+      image: "9.46.76.93:5000/utils/alpine-utils:latest"
       command: [sh]
       source: |                                         # Contents of the here-script
         cat /tmp/payload/incident-102.json
@@ -119,7 +119,7 @@ spec:
          incident-expose-incidents.9.46.74.217.nip.io/webhook?token={{inputs.parameters.TOKEN}}
   - name: query-incident-data
     script:
-      image: 9.46.76.93:5000/alpine:curl
+      image: "9.46.76.93:5000/utils/alpine-utils:latest"
       command: [sh]
       source: |
         curl incident-expose-rest.9.46.74.217.nip.io/incidents | jq '.[].incident_id' | wc -l  
