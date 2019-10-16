@@ -1,24 +1,30 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Workflow
 metadata:
-  generateName: scripts-bash-
+  generateName: argo-example-
 spec:
-  entrypoint: bash-script-example
+  entrypoint: argo-workflow-example
   arguments:
     parameters:
     - name: docker-context
       value: "images/alpine-utils/"
-    - name: image
+    - name: image-utils
       value: "9.46.76.93:5000/utils/alpine-utils:latest"
+    - name: incidents-ingress
+      value: incident-expose-incidents.9.46.74.217.nip.io
+    - name: rest-ingress
+      value: incident-expose-rest.9.46.74.217.nip.io
+    - name: minio-server
+      value: argo-artifacts-minio.argo.svc:9000
   volumes:
   - name: vol
     emptyDir: {}
   templates:
-  - name: bash-script-example
+  - name: argo-workflow-example
     steps:
     - - name: build-utility-image
         template: build-image
-    - - name: sync-deployment 
+    - - name: sync-app-deployment 
         template: sync-deploy
         arguments:
           parameters:
@@ -28,13 +34,17 @@ spec:
             value: HEAD
           - name: flags
             value: --
-    - - name: populate
+    - - name: populate-incident-data
         template: populate-incident-data
         arguments:
           parameters:
+          - name: msg
+            value: "{{item}}"      ## placeholder to receive count item
           - name: TOKEN
             value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoidG9kb191c2VyIn0.pF7fhh4XfCz72LN3YQh-g0GmDy-3vZjQA7AgCD1w9dk"
-    - - name: query
+        withSequence:
+          count: "5"
+    - - name: query-incident-data
         template: query-incident-data
   - name: build-image
     inputs:
@@ -94,12 +104,13 @@ spec:
     inputs:
       parameters:
       - name: TOKEN
+      - name: msg
       artifacts:
       - name: payload
         path: /tmp/payload/incident-102.json
         s3:
           bucket: my-bucket
-          endpoint: argo-artifacts-minio.argo.svc:9000
+          endpoint: {{workflow.parameters.minio-server}}
           insecure: true
           key: incidents/incident-102.json
           accessKeySecret:
@@ -109,7 +120,7 @@ spec:
             name: minio-access
             key: secretKey
     script:
-      image: "9.46.76.93:5000/utils/alpine-utils:latest"
+      image: "{{workflow.parameters.image-utils}}"
       imagePullPolicy: Always
       command: [sh]
       source: |                                         # Contents of the here-script
@@ -117,11 +128,11 @@ spec:
         echo
         curl -v -H "Content-Type: application/json" \
          --data-binary "@/tmp/payload/incident-102.json" \
-         incident-expose-incidents.9.46.74.217.nip.io/webhook?token={{inputs.parameters.TOKEN}}
+         {{workflow.parameters.incidents-ingress}}/webhook?token={{inputs.parameters.TOKEN}}
   - name: query-incident-data
     script:
-      image: "9.46.76.93:5000/utils/alpine-utils:latest"
+      image: "{{workflow.parameters.image-utils}}"
       imagePullPolicy: Always
       command: [sh]
       source: |
-        curl incident-expose-rest.9.46.74.217.nip.io/incidents | jq '.[].incident_id' | wc -l  
+        curl {{workflow.parameters.rest-ingress}}/incidents | jq '.[].incident_id' | wc -l  
