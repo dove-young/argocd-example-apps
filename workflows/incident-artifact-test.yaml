@@ -16,7 +16,7 @@ spec:
   templates:
   - name: bash-script-example
     steps:
-    - - name: generate-artifact
+    - - name: build-utility-image
         template: build-image
     - - name: sync-deployment 
         template: sync-deploy
@@ -110,6 +110,7 @@ spec:
             key: secretKey
     script:
       image: "9.46.76.93:5000/utils/alpine-utils:latest"
+      imagePullPolicy: Always
       command: [sh]
       source: |                                         # Contents of the here-script
         cat /tmp/payload/incident-102.json
@@ -120,6 +121,7 @@ spec:
   - name: query-incident-data
     script:
       image: "9.46.76.93:5000/utils/alpine-utils:latest"
+      imagePullPolicy: Always
       command: [sh]
       source: |
         curl incident-expose-rest.9.46.74.217.nip.io/incidents | jq '.[].incident_id' | wc -l  
