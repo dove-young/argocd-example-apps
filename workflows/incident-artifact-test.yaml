@@ -8,8 +8,14 @@ spec:
     parameters:
     - name: docker-context
       value: "images/alpine-utils/"
+    - name: local-docker-registry
+      value: 9.46.76.93:5000
     - name: image-utils
       value: "9.46.76.93:5000/utils/alpine-utils:latest"
+    - name: image-kaniko
+      value: 9.46.76.93:5000/kaniko-project/executor:latest
+    - name: image-argocd-cli
+      value: argoproj/argocd:v1.2.2
     - name: incidents-ingress
       value: incident-expose-incidents.9.46.74.217.nip.io
     - name: rest-ingress
@@ -22,10 +28,10 @@ spec:
   templates:
   - name: argo-workflow-example
     steps:
-    - - name: build-utility-image
-        template: build-image
-    - - name: sync-app-deployment 
-        template: sync-deploy
+    - - name: build-utility-image    ## Build a docker image from Dockerfile which hosts in GitHub Repo
+        template: build-image        ## 
+    - - name: sync-app-deployment    ## Sync any changes to incident-expose application into K8S via argocd
+        template: sync-deploy        ##
         arguments:
           parameters:
           - name: application-name
@@ -34,8 +40,10 @@ spec:
             value: HEAD
           - name: flags
             value: --
-    - - name: populate-incident-data
-        template: populate-incident-data
+    - - name: clean-database              ## clean up incident data from database
+        template: clean-database
+    - - name: populate-incident-data      ## Populate payload data into incident-expose
+        template: populate-incident-data  ## repeat 3 times
         arguments:
           parameters:
           - name: msg
@@ -43,8 +51,18 @@ spec:
           - name: TOKEN
             value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoidG9kb191c2VyIn0.pF7fhh4XfCz72LN3YQh-g0GmDy-3vZjQA7AgCD1w9dk"
         withSequence:
-          count: "5"
-    - - name: query-incident-data
+          count: "3"
+    - - name: populate-payload-on-sidecar       ## Populate payload data into incident-expose
+        template: populate-payload-on-sidecar   ## and cat payload data in a sidecar container
+        arguments:                           ## repeat 2 times
+          parameters:
+          - name: msg
+            value: "{{item}}"      ## placeholder to receive count item
+          - name: TOKEN
+            value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoidG9kb191c2VyIn0.pF7fhh4XfCz72LN3YQh-g0GmDy-3vZjQA7AgCD1w9dk"
+        withSequence:
+          count: "2"
+    - - name: query-incident-data             ## Query incident data from postgrest 
         template: query-incident-data
   - name: build-image
     inputs:
@@ -57,18 +75,18 @@ spec:
           repo: https://github.com/dove-young/argocd-example-apps.git
           revision: "david"
     container:
-      image: 9.46.76.93:5000/kaniko-project/executor:latest
+      image: "{{workflow.parameters.image-kaniko}}"
       command:
         - /kaniko/executor
       args:
         - --dockerfile=/src/{{workflow.parameters.docker-context}}/Dockerfile
-        - --destination=9.46.76.93:5000/utils/alpine-utils:latest
+        - --destination={{workflow.parameters.image-utils}}
         - --context=/src/{{workflow.parameters.docker-context}}
         - --skip-tls-verify
         - --digest-file=/dev/termination-log      
         - --insecure
-        - --insecure-registry=9.46.76.93:5000
-        - --skip-tls-verify-registry=9.46.76.93:5000
+        - --insecure-registry={{workflow.parameters.local-docker-registry}}
+        - --skip-tls-verify-registry={{workflow.parameters.local-docker-registry}}
   - name: sync-deploy
     inputs:
       parameters:
@@ -76,7 +94,7 @@ spec:
       - name: revision
       - name: flags
     script:
-      image: argoproj/argocd:v1.2.2
+      image: "{{workflow.parameters.image-argocd-cli}}"
       env:
       - name: ARGOCD_SERVER
         valueFrom:
@@ -100,7 +118,16 @@ spec:
         fi
         argocd app sync {{inputs.parameters.application-name}} --revision {{inputs.parameters.revision}} {{inputs.parameters.flags}}
         argocd app wait {{inputs.parameters.application-name}} --health {{inputs.parameters.flags}}
-  - name: populate-incident-data
+  - name: clean-database
+    script:
+      image: "{{workflow.parameters.image-utils}}"
+      command: [bash]
+      source: |
+        for id in `curl {{workflow.parameters.rest-ingress}}/incidents | jq '.[].id'`
+        do
+           curl -v -X DELETE {{workflow.parameters.rest-ingress}}/incidents?id=eq.$id
+        done
+  - name: populate-incident-data 
     inputs:
       parameters:
       - name: TOKEN
@@ -110,7 +137,7 @@ spec:
         path: /tmp/payload/incident-102.json
         s3:
           bucket: my-bucket
-          endpoint: {{workflow.parameters.minio-server}}
+          endpoint: "{{workflow.parameters.minio-server}}"
           insecure: true
           key: incidents/incident-102.json
           accessKeySecret:
@@ -129,6 +156,40 @@ spec:
         curl -v -H "Content-Type: application/json" \
          --data-binary "@/tmp/payload/incident-102.json" \
          {{workflow.parameters.incidents-ingress}}/webhook?token={{inputs.parameters.TOKEN}}
+  - name: populate-payload-on-sidecar
+    inputs:
+      parameters:
+        - name: TOKEN
+        - name: msg
+      artifacts:
+        - name: payload
+          path: /tmp/payload/incident-102.json
+          s3:
+            bucket: my-bucket
+            endpoint: "{{workflow.parameters.minio-server}}"
+            insecure: true
+            key: incidents/incident-102.json
+            accessKeySecret:
+              name: minio-access
+              key: accessKey
+            secretKeySecret:
+              name: minio-access
+              key: secretKey
+    script:
+      image: "{{workflow.parameters.image-utils}}"
+      imagePullPolicy: Always
+      command: [sh]
+      source: |                                         # Contents of the here-script
+        cat /tmp/payload/incident-102.json
+        echo
+        curl -v -H "Content-Type: application/json" \
+         --data-binary "@/tmp/payload/incident-102.json" \
+         {{workflow.parameters.incidents-ingress}}/webhook?token={{inputs.parameters.TOKEN}}
+    sidecars:
+    - name: fetch-payload-sidecar
+      mirrorVolumeMounts: true
+      image: alpine:latest
+      command: ["cat", "/tmp/payload/incident-102.json"]
   - name: query-incident-data
     script:
       image: "{{workflow.parameters.image-utils}}"
