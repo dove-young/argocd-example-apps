@@ -1,0 +1,46 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: argocd-sync-tmpl
+spec: 
+  templates:
+  - name: argocd-sync
+    inputs:
+      parameters:
+      - name: application-name
+      - name: app-revision
+      - name: app-flags
+        value: "--"
+      - name: image-argocd-cli
+        value: argoproj/argocd:v1.2.2
+      - name: argocd-env-configmap
+        value: argocd-env-configmap
+      - name: argocd-env-secret
+        value: argocd-env-secret
+    script:
+      image: "{{inputs.parameters.image-argocd-cli}}"
+      env:
+      - name: ARGOCD_SERVER
+        valueFrom:
+          configMapKeyRef:
+            name: "{{inputs.parameters.argocd-env-configmap}}"
+            name: argocd-env-configmap
+            key: ARGOCD_SERVER
+      - name: ARGOCD_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: "{{inputs.parameters.argocd-env-secret}}"
+            key: ARGOCD_USERNAME
+      - name: ARGOCD_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: "{{inputs.parameters.argocd-env-secret}}"
+            key: ARGOCD_PASSWORD
+      command: ["/bin/bash"]      
+      source: |
+        if [ -z $ARGOCD_AUTH_TOKEN ]; then
+           yes | argocd login $ARGOCD_SERVER --username=$ARGOCD_USERNAME --password=$ARGOCD_PASSWORD;
+        fi
+        argocd app sync {{inputs.parameters.application-name}} --revision {{inputs.parameters.app-revision}} {{inputs.parameters.app-flags}}
+        argocd app wait {{inputs.parameters.application-name}} --health {{inputs.parameters.app-flags}}
+  

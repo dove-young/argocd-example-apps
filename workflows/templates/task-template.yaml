@@ -2,11 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: WorkflowTemplate
 metadata:
   name: workflow-template-david
-spec:
-  arguments:
-    parameters:
-    - name: image-kaniko
-      value: 9.46.76.93:5000/kaniko-project/executor:latest    
+spec: 
   templates:
   - name: build-image
     inputs:
@@ -23,8 +19,14 @@ spec:
       - name: docker-context
       - name: git-repo
       - name: git-revision
+      - name: image-kaniko
+        value: 9.46.76.93:5000/kaniko-project/executor:latest
+      - name: docker-registry
+        value: 9.46.76.93:5000
     container:
-      image: 9.46.76.93:5000/kaniko-project/executor:latest
+#      image: 9.46.76.93:5000/kaniko-project/executor:latest
+      image: "{{inputs.parameters.image-kaniko}}"
+      imagePullPolicy: Always
       command:
         - /kaniko/executor
       args:
@@ -34,5 +36,5 @@ spec:
         - --skip-tls-verify
         - --digest-file=/dev/termination-log      
         - --insecure
-        - --insecure-registry=9.46.76.93:5000
-        - --skip-tls-verify-registry=9.46.76.93:5000 
+        - --insecure-registry="{{inputs.parameters.docker-registry}}"
+        - --skip-tls-verify-registry="{{inputs.parameters.docker-registry}}"

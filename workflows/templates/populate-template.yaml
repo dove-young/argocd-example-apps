@@ -1,0 +1,43 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: populate-incident-data-tmpl
+spec: 
+  templates:
+  - name: populate-incident-data 
+    inputs:
+      parameters:
+      - name: TOKEN
+      - name: incidents-ingress
+      - name: api
+        value: webhook
+      - name: payload-path
+      - name: image-utils
+      - name: access-key-secret
+        value: minio-access
+      - name: minio-server
+        value: argo-artifacts-minio.argo.svc:9000
+      artifacts:
+      - name: payload
+        path: /tmp/payload/{{inputs.parameters.payload-path}}
+        s3:
+          bucket: my-bucket
+          endpoint: "{{inputs.parameters.minio-server}}"
+          insecure: true
+          key: "{{inputs.parameters.payload-path}}"
+          accessKeySecret:
+            name: "{{inputs.parameters.access-key-secret}}"
+            key: accessKey
+          secretKeySecret:
+            name: "{{inputs.parameters.access-key-secret}}"
+            key: secretKey
+    script:
+      image: "{{inputs.parameters.image-utils}}"
+      imagePullPolicy: Always
+      command: [sh]
+      source: |                                         # Contents of the here-script
+        cat /tmp/payload/{{inputs.parameters.payload-path}}
+        echo
+        curl -v -H "Content-Type: application/json" \
+         --data-binary "@/tmp/payload/{{inputs.parameters.payload-path}}" \
+         {{inputs.parameters.incidents-ingress}}/{{inputs.parameters.api}}?token={{inputs.parameters.TOKEN}}

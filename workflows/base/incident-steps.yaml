@@ -3,11 +3,74 @@ kind: Workflow
 metadata:
   generateName: argo-steps-
 spec:
-  entrypoint: hello-hello-hello
+  entrypoint: incident-steps
+  arguments:
+    parameters:
+    - name: docker-context
+      value: "images/alpine-utils/"
+    - name: local-docker-registry
+      value: 9.46.76.93:5000
+    - name: image-utils
+      value: "9.46.76.93:5000/utils/alpine-utils:latest"
+    - name: image-kaniko
+      value: 9.46.76.93:5000/kaniko-project/executor:latest
+    - name: image-argocd-cli
+      value: argoproj/argocd:v1.2.2
+    - name: incidents-ingress
+      value: incident-expose-incidents.9.46.74.217.nip.io
+    - name: rest-ingress
+      value: incident-expose-rest.9.46.74.217.nip.io
+    - name: minio-server
+      value: argo-artifacts-minio.argo.svc:9000
   templates:
-  - name: hello-hello-hello
+  - name: incident-steps
     steps:
-    - - name: hello1
+    - - name: build-image-utils
         templateRef:
-          name: argo-workflow-example
-          template: build-image-utils
+          name: workflow-template-david
+          template: build-image
+        arguments:
+          parameters:
+            - name: image-dest
+              value: "{{workflow.parameters.image-utils}}"
+            - name: docker-context
+              value: "images/alpine-utils/"
+            - name: git-repo
+              value: https://github.com/dove-young/argocd-example-apps.git
+            - name: git-revision
+              value: david
+    - - name: sync-incident-deploy
+        templateRef:
+          name: argocd-sync-tmpl
+          template: argocd-sync
+        arguments:
+          parameters:
+            - name: application-name
+              value: incident-expose            
+            - name: app-revision
+              value: david
+    - - name: populate-data
+        templateRef:
+          name: populate-incident-data-tmpl
+          template: populate-incident-data
+        arguments:
+          parameters:
+            - name: TOKEN
+              value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoidG9kb191c2VyIn0.pF7fhh4XfCz72LN3YQh-g0GmDy-3vZjQA7AgCD1w9dk"
+            - name: incidents-ingress
+              value: incident-expose-incidents.9.46.74.217.nip.io
+            - name: api
+              value: webhook
+            - name: payload-path
+              value: incidents/incident-102.json
+            - name: image-utils
+              value: "{{workflow.parameters.image-utils}}"
+    - - name: query-data
+        template: query-incident-data
+  - name: query-incident-data
+    script:
+      image: "{{workflow.parameters.image-utils}}"
+      imagePullPolicy: Always
+      command: [sh]
+      source: |
+        curl {{workflow.parameters.rest-ingress}}/incidents | jq '.[].incident_id' | wc -l  
