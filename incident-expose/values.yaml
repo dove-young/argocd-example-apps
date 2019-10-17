@@ -1,4 +1,4 @@
-full_qualify_proxy_hostname: agentavtone-masterone.fyre.ibm.com
+proxy_ip: 9.46.74.217
 
 postgresql:
   uid: 1000
@@ -14,12 +14,14 @@ postgresql:
     hostname: "9.46.76.125"
     capacity: 15Gi
     local_path: /k8s/data/postgres
+    policy: Recycle
 
 postgrest:
   port: 3000
-  ingress_path: postgrest
+  ingress_path: rest
   jwt_secret: cJzKWZRJCFWHbJ6O7RUEebpZWx37BV7i
+  token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoidG9kb191c2VyIn0.pF7fhh4XfCz72LN3YQh-g0GmDy-3vZjQA7AgCD1w9dk
 
 openresty:
   port: 80
-  ingress_path: openresty
+  ingress_path: incidents

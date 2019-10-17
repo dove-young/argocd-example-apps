@@ -1,0 +1,13 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: argo-steps-
+spec:
+  entrypoint: hello-hello-hello
+  templates:
+  - name: hello-hello-hello
+    steps:
+    - - name: hello1
+        templateRef:
+          name: argo-workflow-example
+          template: build-image-utils

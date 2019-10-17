@@ -1,0 +1,118 @@
+
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: artifact-cm-
+spec:
+  entrypoint: artifact-example
+  arguments:
+    parameters:
+    - name: release
+      value: incident-expose
+    - name: openresty-ingress-path
+      value: incident-expose-incidents
+    - name: postgrest-ingress-path
+      value: incident-expose-rest
+    - name: postgresql-table-name
+      value: incidents
+    - name: proxy-ip
+      value: 9.46.74.217
+    - name: util-image
+      value: 9.46.76.93/utils/alpine-utils:latest
+  volumes:
+  - name: dockerfile
+    configMap:
+          name: '{{steps.generate-dockerfile.outputs.parameters.cm-name}}'
+          items:
+          - key: Dockerfile
+            path: Dockerfile
+  - name: payload
+    configMap:
+      name: incident-expose-postgresql-init
+      items:
+      - key: raw-payload
+        path: raw-payload.json
+  templates:
+  - name: artifact-example
+    steps:
+    - - name: generate-dockerfile
+        template: dockerfile-cm
+    - - name: generate-artifact
+        template: build-image
+    - - name: populate
+        template: populate-incident-data
+        arguments:
+          parameters:
+          - name: TOKEN
+            value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoidG9kb191c2VyIn0.pF7fhh4XfCz72LN3YQh-g0GmDy-3vZjQA7AgCD1w9dk"
+    - - name: query
+        template: query-incident-data
+  - name: dockerfile-cm
+    resource:                   # indicates that this is a resource template
+      action: create            # can be any kubectl action (e.g. create, delete, apply, patch)
+      # The successCondition and failureCondition are optional expressions.
+      # If failureCondition is true, the step is considered failed.
+      # If successCondition is true, the step is considered successful.
+      # They use kubernetes label selection syntax and can be applied against any field
+      # of the resource (not just labels). Multiple AND conditions can be represented by comma
+      # delimited expressions.
+      # For more details: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+      successCondition: status.succeeded > 0
+      failureCondition: status.failed > 3
+      manifest: |               #put your kubernetes spec here
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          generateName: alpine-
+          ownerReferences:
+          - apiVersion: argoproj.io/v1alpha1
+            blockOwnerDeletion: true
+            kind: Workflow
+            name: "{{workflow.name}}"
+            uid: "{{workflow.uid}}"
+        data:
+          Dockerfile: |
+            FROM alpine
+            RUN apk update && apk add curl git bash nginx
+    outputs:
+      parameters:
+      - name: cm-name
+        valueFrom:
+          jsonPath: '{.metadata.name}'            
+  - name: build-image
+    container:
+      image: 9.46.76.93:5000/kaniko-project/executor:latest
+      command:
+        - /kaniko/executor
+      args:
+        - --dockerfile=/tmp/alpine-utils/Dockerfile
+        - --destination=9.46.76.93/utils/alpine-utils:0.1
+        - --context=/tmp/alpine-utils
+        - --skip-tls-verify
+        - --digest-file=/dev/termination-log
+        - --insure 
+      volumeMounts:
+      - name: dockerfile
+        mountPath: /tmp/alpine-utils
+  - name: populate-incident-data
+    inputs:
+      parameters:
+      - name: TOKEN
+    script:
+      image: 9.46.76.93/utils/alpine-utils:0.1
+      command: [sh]
+      source: |                                         # Contents of the here-script
+        cat /tmp/payload/raw-payload.json
+        echo
+        curl -v -H "Content-Type: application/json" \
+         --data-binary "@/tmp/payload/raw-payload.json" \
+         {{workflow.parameters.openresty-ingress-path}}.{{workflow.parameters.proxy-ip}}.nip.io/webhook?token={{inputs.parameters.TOKEN}}
+      volumeMounts:
+        - mountPath: /tmp/payload
+          name: payload
+  - name: query-incident-data
+    script:
+      image: 9.46.76.93/utils/alpine-utils:0.1
+      command: [sh]
+      source: |
+        curl {{workflow.parameters.postgrest-ingress-path}}.{{workflow.parameters.proxy-ip}}.nip.io/{{workflow.parameters.postgresql-table-name}} | wc -l 

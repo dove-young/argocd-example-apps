@@ -9,7 +9,7 @@ data:
     CREATE TABLE {{ .Values.postgresql.schema }}.{{ .Values.postgresql.table_name }}
     (
         id serial NOT NULL,
-        {{ .Values.postgresql.table_name }}_id text NOT NULL,
+        incident_id text NOT NULL,
         info json NOT NULL,
         PRIMARY KEY (id)
     )
@@ -20,6 +20,62 @@ data:
     grant usage on schema {{ .Values.postgresql.schema }} to {{ .Values.postgresql.db_role }};
     grant select on {{ .Values.postgresql.schema }}.{{ .Values.postgresql.table_name }} to {{ .Values.postgresql.db_role }};
     grant usage, select on sequence {{ .Values.postgresql.schema }}.{{ .Values.postgresql.table_name }}_id_seq to {{ .Values.postgresql.db_role }};
+    create role todo_user nologin;
+    grant todo_user to authenticator;
+    grant usage on schema api to todo_user;
+    grant all on api.incidents to todo_user;
+    grant usage, select on sequence api.incidents_id_seq to todo_user;
+  db-payload: |
+    {
+        "incident_id": "58741820-e282-11e9-aaef-c0413f89dd42",
+        "info": {
+            "correlationDetails": {
+                "application": "HttpAPIScriptTest-003:xZhIrHsWReGt2i6PIDG2sw"
+            },
+            "createdTime": "2019-09-29T06:28:26.280Z",
+            "description": "Application: HttpAPIScriptTest-003:xZhIrHsWReGt2i6P* Connection #0 to host 9.46.76.125 left intactIDG2sw",
+            "displayId": "#0020-98-0",
+            "eventsURL": "https://agentavttwo-mastertwo.fyre.ibm.com/api/incidentquery/v1/58741820-e282-11e9-aaef-c0413f89dd42/events",
+            "id": "58741820-e282-11e9-aaef-c0413f89dd42",
+            "incidentURL": "https://agentavttwo-mastertwo.fyre.ibm.com/api/incidentquery/v1/58741820-e282-11e9-aaef-c0413f89dd42",
+            "lastChanged": "2019-09-29T06:30:26.963Z",
+            "notificationState": "Notification",
+            "owner": "-",
+            "priority": 5,
+            "state": "closed",
+            "summary": "Application: HttpAPIScriptTest-003:xZhIrHsWReGt2i6PIDG2sw",
+            "team": "-",
+            "timelineURL": "https://agentavttwo-mastertwo.fyre.ibm.com/api/incidentquery/v1/58741820-e282-11e9-aaef-c0413f89dd42/timeline"
+        }
+    }
+  raw-payload: |
+    {
+        "correlationDetails": {
+            "application": "HttpAPIScriptTest-003:xZhIrHsWReGt2i6PIDG2sw"
+        },
+        "createdTime": "2019-09-29T06:28:26.280Z",
+        "description": "Application: HttpAPIScriptTest-003:xZhIrHsWReGt2i6P* Connection #0 to host 9.46.76.125 left intactIDG2sw",
+        "displayId": "#0020-98-0",
+        "eventsURL": "https://agentavttwo-mastertwo.fyre.ibm.com/api/incidentquery/v1/58741820-e282-11e9-aaef-c0413f89dd42/events",
+        "id": "58741820-e282-11e9-aaef-c0413f89dd42",
+        "incidentURL": "https://agentavttwo-mastertwo.fyre.ibm.com/api/incidentquery/v1/58741820-e282-11e9-aaef-c0413f89dd42",
+        "lastChanged": "2019-09-29T06:30:26.963Z",
+        "notificationState": "Notification",
+        "owner": "-",
+        "priority": 5,
+        "state": "closed",
+        "summary": "Application: HttpAPIScriptTest-003:xZhIrHsWReGt2i6PIDG2sw",
+        "team": "-",
+        "timelineURL": "https://agentavttwo-mastertwo.fyre.ibm.com/api/incidentquery/v1/58741820-e282-11e9-aaef-c0413f89dd42/timeline"
+    }
+  test-sh: |
+    #!/bin/sh
+    cat $PAYLOAD
+    echo
+    curl -v -H "Content-Type: application/json" \
+     --data-binary "@$PAYLOAD" \
+     {{ .Release.Name }}-{{ .Values.openresty.ingress_path }}.{{ .Values.proxy_ip }}.nip.io/webhook?token=$TOKEN
+     curl {{ .Release.Name }}-{{ .Values.postgrest.ingress_path }}.{{ .Values.proxy_ip }}.nip.io/{{ .Values.postgresql.table_name }} | wc -l
 kind: ConfigMap
 metadata:
   name: {{ .Release.Name }}-postgresql-init

@@ -1,0 +1,105 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: scripts-bash-
+spec:
+  entrypoint: bash-script-example
+  arguments:
+    parameters:
+    - name: release
+      value: incident-expose
+    - name: openresty-ingress-path
+      value: incident-expose-incidents
+    - name: postgrest-ingress-path
+      value: incident-expose-rest
+    - name: postgresql-table-name
+      value: incidents
+    - name: proxy-ip
+      value: 9.46.74.217
+  volumes:
+  - name: vol
+    emptyDir: {}
+  - name: payload
+    configMap:
+      name: incident-expose-postgresql-init
+      items:
+      - key: raw-payload
+        path: raw-payload.json
+#  - name: argocd-env-configmap
+#    configMap:
+#      name: argocd-env-configmap
+  templates:
+  - name: bash-script-example
+    steps:
+    - - name: sync-deployment 
+        template: sync-deploy
+        arguments:
+          parameters:
+          - name: application-name
+            value: incident-expose
+          - name: revision
+            value: HEAD
+          - name: flags
+            value: --
+    - - name: populate
+        template: populate-incident-data
+        arguments:
+          parameters:
+          - name: TOKEN
+            value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoidG9kb191c2VyIn0.pF7fhh4XfCz72LN3YQh-g0GmDy-3vZjQA7AgCD1w9dk"
+    - - name: query
+        template: query-incident-data
+  - name: sync-deploy
+    inputs:
+      parameters:
+      - name: application-name
+      - name: revision
+      - name: flags
+    script:
+      image: argoproj/argocd:v1.2.2
+      env:
+      - name: ARGOCD_SERVER
+        valueFrom:
+          configMapKeyRef:
+            name: argocd-env-configmap
+            key: ARGOCD_SERVER
+      - name: ARGOCD_USERNAME
+        valueFrom:
+          secretKeyRef:
+            name: argocd-env-secret
+            key: ARGOCD_USERNAME
+      - name: ARGOCD_PASSWORD
+        valueFrom:
+          secretKeyRef:
+            name: argocd-env-secret
+            key: ARGOCD_PASSWORD
+      command: ["/bin/bash"]      
+      source: |
+        if [ -z $ARGOCD_AUTH_TOKEN ]; then
+           yes | argocd login $ARGOCD_SERVER --username=$ARGOCD_USERNAME --password=$ARGOCD_PASSWORD;
+        fi
+        argocd app sync {{inputs.parameters.application-name}} --revision {{inputs.parameters.revision}} {{inputs.parameters.flags}}
+        argocd app wait {{inputs.parameters.application-name}} --health {{inputs.parameters.flags}}
+  - name: populate-incident-data
+    inputs:
+      parameters:
+      - name: TOKEN
+    script:
+      image: 9.46.76.93:5000/alpine:curl
+      command: [sh]
+      source: |                                         # Contents of the here-script
+        cat /tmp/payload/raw-payload.json
+        echo
+        curl -v -H "Content-Type: application/json" \
+         --data-binary "@/tmp/payload/raw-payload.json" \
+         {{workflow.parameters.openresty-ingress-path}}.{{workflow.parameters.proxy-ip}}.nip.io/webhook?token={{inputs.parameters.TOKEN}}
+      volumeMounts:
+        - mountPath: /tmp/payload
+          name: payload
+         
+  - name: query-incident-data
+    script:
+      image: 9.46.76.93:5000/alpine:curl
+      command: [sh]
+      source: |
+        curl {{workflow.parameters.postgrest-ingress-path}}.{{workflow.parameters.proxy-ip}}.nip.io/{{workflow.parameters.postgresql-table-name}} | wc -l

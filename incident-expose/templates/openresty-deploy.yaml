@@ -45,8 +45,8 @@ spec:
           name: entrypoint
       dnsPolicy: ClusterFirst
       restartPolicy: Always
-      serviceAccount: incident-expose
-      serviceAccountName: incident-expose
+      serviceAccount: {{ .Release.Name }}-expose
+      serviceAccountName: {{ .Release.Name }}-expose
       terminationGracePeriodSeconds: 30
       volumes:
       - name: config
