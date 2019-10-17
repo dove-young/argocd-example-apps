@@ -58,13 +58,17 @@ spec:
             - name: TOKEN
               value: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoidG9kb191c2VyIn0.pF7fhh4XfCz72LN3YQh-g0GmDy-3vZjQA7AgCD1w9dk"
             - name: incidents-ingress
-              value: incident-expose-incidents.9.46.74.217.nip.io
+              value: "{{workflow.parameters.incidents-ingress}}"
             - name: api
-              value: webhook
+              value: "{{item.api}}"
             - name: payload-path
-              value: incidents/incident-102.json
+              value: "{{item.payload}}"
             - name: image-utils
               value: "{{workflow.parameters.image-utils}}"
+        withItems:       ## loop by map 
+        - { api: 'webhook', payload: 'incidents/incident-102.json' }
+        - { api: 'alert',   payload: 'incidents/incident-103.json' }
+        - { api: 'netcool', payload: 'incidents/incident-104.json' }
     - - name: query-data
         template: query-incident-data
   - name: query-incident-data
