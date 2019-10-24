@@ -1,0 +1,160 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: argo-example-
+spec:
+  entrypoint: argo-workflow-example
+  arguments:
+    parameters:
+    - name: docker-context
+      value: "images/alpine-utils/"
+    - name: local-docker-registry
+      value: 9.46.76.93:5000
+    - name: image-utils
+      value: "9.46.76.93:5000/utils/alpine-utils:latest"
+    - name: image-kaniko
+      value: 9.46.76.93:5000/kaniko-project/executor:latest
+    - name: image-argocd-cli
+      value: argoproj/argocd:v1.2.2
+    - name: minio-server
+      value: argo-artifacts-minio.argo.svc:9000
+    - name: minio-access-secret
+      value: argo-artifacts
+  volumes:
+  - name: vol
+    emptyDir: {}
+  templates:
+  - name: argo-workflow-example
+    steps:
+    - - name: populate-data
+#        templateRef:
+#          name: container-s3-data-tmpl
+        template: populate-s3-data
+        arguments:
+          parameters:
+            - name: nodejs_dc_build_name
+              value: 'nodejs_datacollector.tgz'
+            - name: test-package
+              value: 'NodeDC_CVT_automation.tar'
+            - name: RELEASE_VERSION
+              value: '2019.4.0'
+            - name: agent-pkg-path
+              value: "incidents/appMgtDataCollectors_2019.4.0.tar.gz"
+            - name: mount-path
+              value: /tmp/jenkins
+            - name: artifacts-path
+              value: "incidents/Nodejs"
+            - name: test-pkg
+              value: "NodeDC_CVT_automation.tar"
+            - name: dc-build
+              value: "nodejs_datacollector.tgz"
+  - name: populate-s3-data
+    inputs:
+      parameters:
+      - name: agent-pkg-path
+      - name: artifacts-path
+      - name: test-pkg
+      - name: dc-build
+      - name: mount-path
+#      - name: image-utils
+      - name: RELEASE_VERSION    
+      artifacts:
+      - name: agent-pkg
+        path: "{{inputs.parameters.mount-path}}/{{inputs.parameters.agent-pkg-path}}"
+        s3:
+          bucket: my-bucket
+          endpoint: "{{workflow.parameters.minio-server}}"
+          insecure: true
+          key: "{{inputs.parameters.agent-pkg-path}}"
+          accessKeySecret:
+            name: "{{workflow.parameters.minio-access-secret}}"
+            key: accesskey
+          secretKeySecret:
+            name: "{{workflow.parameters.minio-access-secret}}"
+            key: secretkey
+      - name: test-pkg
+        path: "{{inputs.parameters.mount-path}}/{{inputs.parameters.test-pkg}}"
+        s3:
+          bucket: my-bucket
+          endpoint: "{{workflow.parameters.minio-server}}"
+          insecure: true
+          key: "{{inputs.parameters.artifacts-path}}/{{inputs.parameters.test-pkg}}"
+          accessKeySecret:
+            name: "{{workflow.parameters.minio-access-secret}}"
+            key: accesskey
+          secretKeySecret:
+            name: "{{workflow.parameters.minio-access-secret}}"
+            key: secretkey
+      - name: dc-build
+        path: "{{inputs.parameters.mount-path}}/{{inputs.parameters.dc-build}}"
+        s3:
+          bucket: my-bucket
+          endpoint: "{{workflow.parameters.minio-server}}"
+          insecure: true
+          key: "{{inputs.parameters.artifacts-path}}/{{inputs.parameters.dc-build}}"
+          accessKeySecret:
+            name: "{{workflow.parameters.minio-access-secret}}"
+            key: accesskey
+          secretKeySecret:
+            name: "{{workflow.parameters.minio-access-secret}}"
+            key: secretkey
+    script:
+      image: "{{workflow.parameters.image-utils}}" 
+      command: ["/bin/bash"]      
+      source: |
+        set -o xtrace
+        find {{inputs.parameters.mount-path}}
+        #cd {{inputs.parameters.mount-path}}
+        #tar -xf {{inputs.parameters.agent-pkg-path}}/app_mgmt_runtime_dc_{{inputs.parameters.RELEASE_VERSION}}.tar.gz
+        #cp app_mgmt_runtime_dc_{{inputs.parameters.RELEASE_VERSION}}/{{inputs.parameters.dc-build}} ./
+
+
+#      artifacts:
+#      - name: agent-package
+#        path: /tmp/agent-package/appMgtDataCollectors_2019.4.0.tar.gz
+#        s3:
+#          bucket: my-bucket
+#          endpoint: "{{workflow.parameters.minio-server}}"
+#          insecure: true
+#          key: incidents/appMgtDataCollectors_2019.4.0.tar.gz
+#          accessKeySecret:
+#            name: minio-access
+#            key: accessKey
+#          secretKeySecret:
+#            name: minio-access
+#            key: secretKey
+#  - name: extract-incident-dc
+#    inputs:
+#      parameters:
+#      - name: agent-pkg-path
+#      - name: image-utils
+#      - name: RELEASE_VERSION  
+#    script:
+#      image: "{{workflow.parameters.image-utils}}"
+#      volumeMounts:
+#      - name: vol
+#        mountPath: /tmp
+#      imagePullPolicy: Always
+#      command: [sh]
+#      source: |                                         # Contents of the here-script
+#        ls -l {{workflow.parameters.agent-pkg-path}}
+#        ls -l
+#        tar xf {{workflow.parameters.agent-pkg-path}}
+#        ls -l {{workflow.parameters.agent-pkg-path}}
+#        tar xf {{workflow.parameters.agent-pkg-path}}/app_mgmt_runtime_dc_{{workflow.parameters.RELEASE_VERSION}}.tar.gz
+#        ls -l {{workflow.parameters.agent-pkg-path}}
+#        cp {{workflow.parameters.agent-pkg-path}}/{{workflow.parameters.nodejs_dc_build_name}} ./        
+#    sidecars:
+#    - name: extract-dc-sidecar
+#      mirrorVolumeMounts: true
+#      script:
+#        image: "{{workflow.parameters.image-utils}}"
+#        command: ["/bin/bash"]      
+#        source: |
+#          ls -l
+#          tar xf {{workflow.parameters.mount-path}}/{{workflow.parameters.agent-pkg-path}}
+#          ls -l {{workflow.parameters.mount-path}}/{{workflow.parameters.agent-pkg-path}}
+#          tar xf {{workflow.parameters.mount-path}}/{{workflow.parameters.agent-pkg-path}}/app_mgmt_runtime_dc_{{workflow.parameters.RELEASE_VERSION}}.tar.gz
+#          ls -l {{workflow.parameters.mount-path}}/{{workflow.parameters.agent-pkg-path}}
+#          cp {{workflow.parameters.mount-path}}/{{workflow.parameters.agent-pkg-path}}/{{workflow.parameters.nodejs_dc_build_name}} ./
+          

@@ -1,0 +1,81 @@
+nameSuffix: -develop-20191025
+commonLabels:
+  app: nodejsapp-develop-20191025
+images:
+- name: PLACEHOLDER_DOCKER_REPO/default/petsapp
+  newName: 9.46.76.93:5000/nodejs/sample-rest-api2-pets
+  newTag: "0.1"
+resources:
+- ../../base
+- configMap.yaml
+patchesStrategicMerge:
+- test.yaml
+
+configMapGenerator:	
+- name: nodejs-test-cm
+  literals:	
+    - branch=develop
+    - build=20191025
+
+vars:
+- name: BRANCH_NAME
+  objref:
+    kind: ConfigMap
+    name: nodejs-test-cm
+    apiVersion: v1
+  fieldref:
+    fieldpath: data.branch
+- name: BUILD_NUMBER
+  objref:
+    kind: ConfigMap
+    name: nodejs-test-cm
+    apiVersion: v1
+  fieldref:
+    fieldpath: data.build
+
+patchesJSON6902:
+- target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: nodejsapp
+  patch: |-
+    - op: replace
+      path: /spec/selector
+      value: 
+            matchLabels:
+              app: nodejsapp-develop-20191025
+              pod: nodejsapp-develop-20191025
+    
+    - op: replace
+      path: /spec/template/metadata/labels
+      value:
+            app: nodejsapp-develop-20191025
+            pod: nodejsapp-develop-20191025
+    - op: replace
+      path: /spec/template/metadata/name
+      value: nodejsapp-develop-20191025
+    - op: replace
+      path: /spec/template/spec/containers/0/name
+      value: nodejsapp-develop-20191025
+
+#patchesStrategicMerge:
+#- |-
+#  apiVersion: apps/v1
+#  kind: Deployment
+#  metadata:
+#    labels:
+#      app: nodejsapp-develop-20191024
+#    name: nodejsapp
+#  spec:
+#    replicas: 1
+#    selector:
+#      matchLabels:
+#        app: nodejsapp-develop-20191025
+#        pod: nodejsapp-develop-20191025
+#    template:
+#      metadata:
+#        labels:
+#          app: nodejsapp-develop-20191025
+#          pod: nodejsapp-develop-20191025
+#        name: nodejsapp-develop-20191025

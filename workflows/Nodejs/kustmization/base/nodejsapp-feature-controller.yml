@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodejsapp
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+      - name: nodejsapp
+        image: PLACEHOLDER_DOCKER_REPO/default/petsapp:v1
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+          protocol: TCP
+        volumeMounts:
+        - name: global-environment
+          mountPath: /opt/ibm/apm/serverconfig
+      volumes:
+      - name: global-environment
+        secret:
+          secretName: icam-server-secret
+          optional: true

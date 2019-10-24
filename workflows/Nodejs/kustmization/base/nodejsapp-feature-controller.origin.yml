@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodejsapp
+  labels:
+    app: PLACEHOLDER_APP_NAME
+spec:
+  selector:
+    matchLabels:
+        app: PLACEHOLDER_APP_NAME
+        pod: PLACEHOLDER_APP_NAME
+  replicas: 1
+  template:
+    metadata:
+      name: nodejsapp
+      labels:
+        app: PLACEHOLDER_APP_NAME
+        pod: PLACEHOLDER_APP_NAME
+    spec:
+      containers:
+      - name: nodejsapp
+        image: PLACEHOLDER_DOCKER_REPO/default/petsapp:v1
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+          protocol: TCP
+        env:
+        - name: NAMESPACE_DEFAULT
+          value: "default"
+        - name: NODEJS_ROOT
+          value: "/opt/ibm/nodejsApp/pets"
+        - name: ENTRY_POINT
+          value: "server/server.js"
+        - name: DUMP_PROPERTIES_AVT
+          value: "true"
+        - name: KNJ_LOG_TO_FILE
+          value: "PLACEHOLDER_KNJ_LOG_TO_FILE"
+        - name: KNJ_LOG_LEVEL
+          value: "PLACEHOLDER_KNJ_LOG_LEVEL"
+        - name: KNJ_ENABLE_TT
+          value: "PLACEHOLDER_KNJ_ENABLE_TT"
+        - name: KNJ_ENABLE_DEEPDIVE
+          value: "PLACEHOLDER_KNJ_ENABLE_DEEPDIVE"
+        - name: KNJ_ENABLE_METHODTRACE
+          value: "PLACEHOLDER_KNJ_ENABLE_METHODTRACE"
+        - name: OPENTRACING_SAMPLER
+          value: "1.0"
+        - name: LATENCY_SAMPLER_PARAM
+          value: "1"
+        - name: KNJ_PROVIDER_ID
+          value: "PLACEHOLDER_KNJ_PROVIDER_ID"
+        - name: KNJ_SERVICEENDPOINTS_ID
+          value: "PLACEHOLDER_KNJ_SERVICEENDPOINTS_ID"
+        - name: SERVICEINSTANCE_ID
+          value: "PLACEHOLDER_KNJ_SERVICEINSTANCE_ID"
+        - name: KNJ_NODEAPPLICATIONRUNTIME_ID
+          value: "PLACEHOLDER_KNJ_NODEAPPLICATIONRUNTIME_ID"
+        volumeMounts:
+        - name: global-environment
+          mountPath: /opt/ibm/apm/serverconfig
+      volumes:
+      - name: global-environment
+        secret:
+          secretName: icam-server-secret
+          optional: true
