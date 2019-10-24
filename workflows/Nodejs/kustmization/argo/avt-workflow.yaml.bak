@@ -1,0 +1,242 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: argo-example-
+spec:
+  entrypoint: argo-workflow-example
+  serviceAccountName: argo
+  arguments:
+    parameters:
+    - name: docker-context
+      value: "images/alpine-utils/"
+    - name: local-docker-registry
+      value: 9.46.76.93:5000
+    - name: image-utils
+      value: "9.46.76.93:5000/utils/alpine-utils:latest"
+    - name: image-kaniko
+      value: 9.46.76.93:5000/kaniko-project/executor:latest
+    - name: image-argocd-cli
+      value: argoproj/argocd:v1.2.2
+    - name: minio-server
+      value: argo-artifacts.argo.svc:9000
+    - name: minio-access-secret
+      value: argo-artifacts
+    - name: config-pack
+      value: ibm-cloud-apm-dc-configpack.tar
+    - name: artifacts-path
+      value: "incidents"
+#  volumes:
+#  - name: vol
+#    emptyDir: {}
+  templates:
+  - name: argo-workflow-example
+    steps:
+    - - name: populate-data
+#        templateRef:
+#          name: container-s3-data-tmpl
+        template: populate-s3-data
+        arguments:
+          parameters:
+            - name: nodejs_dc_build_name
+              value: 'nodejs_datacollector.tgz'
+            - name: test-package
+              value: 'NodeDC_CVT_automation.tar'
+            - name: RELEASE_VERSION
+              value: '2019.4.0'
+            - name: agent-pkg-path
+              value: "incidents/appMgtDataCollectors_2019.4.0.tar.gz"
+            - name: workspace
+              value: /tmp/jenkins
+            - name: artifacts-path
+              value: "incidents/Nodejs"
+            - name: test-pkg
+              value: "NodeDC_CVT_automation.tar"
+            - name: dc-build
+              value: "nodejs_datacollector.tgz"
+    - - name: check-nodejs-pets
+        template: check-nodejs-pets
+        arguments:
+          artifacts:
+          - name: nodejs-pets
+            from: "{{steps.populate-data.outputs.artifacts.nodejs-pets}}"              
+          parameters:
+            - name: docker-context
+              value: sample-rest-api2/pets
+    - - name: build-nodejs-pets
+        template: build-nodejs-pets-image
+        arguments:
+          artifacts:
+          - name: nodejs-pets
+            from: "{{steps.populate-data.outputs.artifacts.nodejs-pets}}"              
+          parameters:
+            - name: docker-context
+              value: sample-rest-api2/pets
+  - name: populate-s3-data   
+    inputs:
+      parameters:
+      - name: agent-pkg-path
+      - name: artifacts-path
+      - name: test-pkg
+      - name: dc-build
+      - name: workspace
+#      - name: image-utils
+      - name: RELEASE_VERSION    
+      artifacts:
+      - name: agent-pkg
+        path: "{{inputs.parameters.workspace}}/{{inputs.parameters.agent-pkg-path}}"
+        s3:
+          bucket: my-bucket
+          endpoint: "{{workflow.parameters.minio-server}}"
+          insecure: true
+          key: "{{inputs.parameters.agent-pkg-path}}"
+          accessKeySecret:
+            name: "{{workflow.parameters.minio-access-secret}}"
+            key: accesskey
+          secretKeySecret:
+            name: "{{workflow.parameters.minio-access-secret}}"
+            key: secretkey
+      - name: test-pkg
+        path: "{{inputs.parameters.workspace}}/{{inputs.parameters.test-pkg}}"
+        s3:
+          bucket: my-bucket
+          endpoint: "{{workflow.parameters.minio-server}}"
+          insecure: true
+          key: "{{inputs.parameters.artifacts-path}}/{{inputs.parameters.test-pkg}}"
+          accessKeySecret:
+            name: "{{workflow.parameters.minio-access-secret}}"
+            key: accesskey
+          secretKeySecret:
+            name: "{{workflow.parameters.minio-access-secret}}"
+            key: secretkey
+      - name: test-script
+        path: "{{inputs.parameters.workspace}}/sandbox_ut_insquad.sh"
+        s3:
+          bucket: my-bucket
+          endpoint: "{{workflow.parameters.minio-server}}"
+          insecure: true
+          key: "{{inputs.parameters.artifacts-path}}/sandbox_ut_insquad.sh"
+          accessKeySecret:
+            name: "{{workflow.parameters.minio-access-secret}}"
+            key: accesskey
+          secretKeySecret:
+            name: "{{workflow.parameters.minio-access-secret}}"
+            key: secretkey            
+#      - name: config-pack
+#        path: "{{inputs.parameters.workspace}}/{{workflow.parameters.config-pack}}"
+#        s3:
+#          bucket: my-bucket
+#          endpoint: "{{workflow.parameters.minio-server}}"
+#          insecure: true
+#          key: "{{workflow.parameters.artifacts-path}}/{{workflow.parameters.config-pack}}"
+#          accessKeySecret:
+#            name: "{{workflow.parameters.minio-access-secret}}"
+#            key: accesskey
+#          secretKeySecret:
+#            name: "{{workflow.parameters.minio-access-secret}}"
+#            key: secretkey
+    script:
+      image: "{{workflow.parameters.image-utils}}" 
+      command: ["/bin/bash"]
+      env:
+      - name: WORKSPACE
+        value: "{{inputs.parameters.workspace}}"
+      - name: AGENT_PKG
+        value: "{{inputs.parameters.agent-pkg-path}}"
+      - name: RELEASE_VERSION
+        value: "{{inputs.parameters.RELEASE_VERSION}}"
+      - name: BRANCH_NAME
+        value: develop
+      - name: GSA_HOSTNAME
+        value: 'rtpgsa.ibm.com'
+      - name: PIPELINE_ACTION
+        value: AVT
+      - name: nodejs_dc_build_base
+        value: "https://rtpgsa.ibm.com/projects/i/itm_db2_agent/nodejs/cloudnative/NPMCD"
+      - name: nodejs_dc_build_name
+        value: nodejs_datacollector.tgz
+      source: |
+        set -o xtrace
+        #find {{inputs.parameters.workspace}}
+        find {{inputs.parameters.workspace}} -maxdepth 3
+        cd ${WORKSPACE}
+
+        tar -xzf ${WORKSPACE}/${AGENT_PKG}/app_mgmt_runtime_dc_${RELEASE_VERSION}.tar.gz
+        cp app_mgmt_runtime_dc_${RELEASE_VERSION}/${nodejs_dc_build_name} ${WORKSPACE}/
+
+        #cd /tmp/jenkins/NodeDC_CVT_automation.tar/automation
+
+        pwd
+        mkdir ${PIPELINE_ACTION}
+        cp -r ${WORKSPACE}/{{inputs.parameters.test-pkg}}/automation/* ${PIPELINE_ACTION}/
+
+        cat ${WORKSPACE}/sandbox_ut_insquad.sh > ${PIPELINE_ACTION}/scripts/sandbox_ut_insquad.sh   ##  #--warning=no-timestamp
+        grep 'warning=no-timestamp' ${PIPELINE_ACTION}/scripts/sandbox_ut_insquad.sh
+        
+        chmod -R +x ${PIPELINE_ACTION}/scripts
+        pwd
+        ls  ${PIPELINE_ACTION}/scripts/sandbox_ut_insquad.sh
+        echo  ${PIPELINE_ACTION}/scripts/sandbox_ut_insquad.sh ITMBLD_GSAUSER ITMBLD_GSAPASS ${WORKSPACE}/${PIPELINE_ACTION} \
+        ${nodejs_dc_build_base}/latest ${nodejs_dc_build_name} localhost
+
+        ${PIPELINE_ACTION}/scripts/sandbox_ut_insquad.sh ITMBLD_GSAUSER ITMBLD_GSAPASS ${WORKSPACE}/${PIPELINE_ACTION} \
+        ${nodejs_dc_build_base}/latest ${nodejs_dc_build_name} localhost
+        pwd
+        cd AVT/workspace/
+        ls -l 
+        ls -l sample-rest-api2/pets
+        sed -i -e 's#npm install > /dev/null#npm install --loglevel silly#' sample-rest-api2/pets/Dockerfile
+        #tar -czf ${WORKSPACE}/nodejs-pets.tar.gz sample-rest-api2/pets 
+        #ls -lh ${WORKSPACE}/nodejs-pets.tar.gz
+    outputs:
+      artifacts:
+      - name: nodejs-pets
+        path: "{{inputs.parameters.workspace}}/AVT/workspace/sample-rest-api2/pets"
+
+  - name: check-nodejs-pets
+    inputs:
+      artifacts:
+      - name: nodejs-pets
+        path: /src/nodejs-pets
+      parameters:
+      - name: docker-context
+      # Check out the master branch of the argo repo and place it at /src
+      # revision can be anything that git checkout accepts: branch, commit, tag, etc.
+#      - name: argo-source
+#        path: /src
+#        git:
+#          repo: https://github.com/dove-young/argocd-example-apps.git
+#          revision: "david"
+    container:
+      image: 9.46.76.93:5000/default/alpine-utils:k8s
+      command: ["find", "/src", "-maxdepth", "3"]
+#        - /usr/bin/find
+#      args:
+#        - /src
+  - name: build-nodejs-pets-image
+    inputs:
+      artifacts:
+      - name: nodejs-pets
+        path: /src/nodejs-pets
+      parameters:
+      - name: docker-context
+    container:      
+      image: 9.46.76.93:5000/kaniko-project/executor:latest
+      securityContext:
+        privileged: true 
+      command:
+        - /kaniko/executor
+      args:
+        - --dockerfile=/src/nodejs-pets/Dockerfile
+        - --destination=9.46.76.93:5000/nodejs/sample-rest-api2-pets:0.1
+        - --context=/src/nodejs-pets
+        - --skip-tls-verify
+        - --digest-file=/dev/termination-log 
+        - --insecure
+        - --insecure-registry=9.46.76.93:5000
+        - --skip-tls-verify-registry=9.46.76.93:5000
+        - --cache=true
+#        - --verbosity=debug
+        
+#        - --cache-repo=9.46.76.93:5000
+# error uploading layer to cache: getting tag for destination: repository can only contain the runes `abcdefghijklmnopqrstuvwxyz0123456789_-./`: 9.46.76.93:5000
+

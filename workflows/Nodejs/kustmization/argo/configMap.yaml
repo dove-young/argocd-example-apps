@@ -1,0 +1,8 @@
+kind: ConfigMap
+metadata:
+  name: argo-cm
+apiVersion: v1
+data:
+  minio-server: argo-artifacts.argo.svc:9000
+  minio-access: argo-artifacts
+  insecure: true

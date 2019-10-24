@@ -1,0 +1,35 @@
+resources:
+- avt-workflow.yaml
+- configMap.yaml
+
+#configMapGenerator:	
+#- name: argo-cm
+#  literals:	
+#    - minio-server=argo-artifacts.argo.svc:9000
+#    - minio-access=argo-artifacts
+
+vars:
+- name: MINIO_SERVER
+  objref:
+    kind: ConfigMap
+    name: argo-cm
+    apiVersion: v1
+  fieldref:
+    fieldpath: data.minio-server
+- name: MINIO_INSECURE
+  objref:
+    kind: ConfigMap
+    name: argo-cm
+    apiVersion: v1
+  fieldref:
+    fieldpath: data.insecure    
+- name: MINIO_ACCESS
+  objref:
+    kind: ConfigMap
+    name: argo-cm
+    apiVersion: v1
+  fieldref:
+    fieldpath: data.minio-access
+
+configurations:
+- kustomizeconfig/workflow.yaml
