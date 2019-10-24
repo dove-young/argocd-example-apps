@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nodejsapp
+spec:
+  template:
+    spec:
+      containers:
+      - name: "nodejsapp"
+        env:
+        - name: NAMESPACE_DEFAULT
+          value: "default"
+        - name: NODEJS_ROOT
+          value: "/opt/ibm/nodejsApp/pets"
+        - name: ENTRY_POINT
+          value: "server/server.js"
+        - name: DUMP_PROPERTIES_AVT
+          value: "true"
+        - name: KNJ_LOG_TO_FILE
+          value: "true"
+        - name: KNJ_LOG_LEVEL
+          value: "all"
+        - name: KNJ_ENABLE_TT
+          value: "false"
+        - name: KNJ_ENABLE_DEEPDIVE
+          value: "false"
+        - name: KNJ_ENABLE_METHODTRACE
+          value: "false"
+        - name: OPENTRACING_SAMPLER
+          value: "1.0"
+        - name: LATENCY_SAMPLER_PARAM
+          value: "1"
+        - name: KNJ_PROVIDER_ID
+          value: "provider-$(BRANCH_NAME)-$(BUILD_NUMBER)"
+        - name: KNJ_SERVICEENDPOINTS_ID
+          value: "service-endpoints-$(BRANCH_NAME)-$(BUILD_NUMBER)"
+        - name: SERVICEINSTANCE_ID
+          value: "service-instance-$(BRANCH_NAME)-$(BUILD_NUMBER)"
+        - name: KNJ_NODEAPPLICATIONRUNTIME_ID
+          value: "node-application-runtime-$(BRANCH_NAME)-$(BUILD_NUMBER)"
