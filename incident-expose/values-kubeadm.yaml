@@ -15,7 +15,7 @@ postgresql:
   sql_file: db-init.sql
   sql_path: /tmp/init-db
   storage:
-    hostname: "9.46.76.125"
+    hostname: "9.46.74.243"
     capacity: 15Gi
     local_path: /k8s/data/postgres
     policy: Recycle
