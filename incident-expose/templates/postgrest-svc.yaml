@@ -55,7 +55,7 @@ spec:
   type: ClusterIP
 
 ---
-apiVersion: extensions/v1beta1
+apiVersion: {{ .Values.k8s.ingress_api }}
 kind: Ingress
 metadata:
   labels:
@@ -73,7 +73,7 @@ spec:
         
 
 ---
-apiVersion: extensions/v1beta1
+apiVersion: {{ .Values.k8s.ingress_api }}
 kind: Ingress
 metadata:
   labels:

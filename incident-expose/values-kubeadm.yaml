@@ -1,7 +1,7 @@
 proxy_ip: 9.46.74.217
 
 k8s:
-  deployment_api: extensions/v1beta1
+  deployment_api: apps/v1
   ingress_api: extensions/v1beta1
 
 postgresql:
