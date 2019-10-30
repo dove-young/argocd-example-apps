@@ -1,6 +1,6 @@
 - hosts: master
   vars:
-    argocd_server_external: 9.46.76.93
+    argocd_server_external: "{{ groups['worker'][0]}}"
     nfs_src: "{{playbook_dir}}/external-storage/nfs/deploy/kubernetes"
   tasks:
     - name: Clone nfs provider
@@ -23,7 +23,8 @@
       with_list:
         - class.yaml
         - claim.yaml
-        - psp.yaml 
+        - psp.yaml
+        - rbac.yaml
         - statefulset.yaml
     - name: get argocd install yaml
       get_url:
@@ -103,3 +104,37 @@
         url: https://github.com/argoproj/argo/releases/download/v2.4.2/argo-linux-amd64
         dest: /usr/local/bin/argo
         mode: 755
+    - name: minio install
+      shell: |
+        helm install stable/minio \
+          --name argo-artifacts \
+          --namespace argo \
+          --set service.type=NodePort \
+          --set defaultBucket.enabled=true \
+          --set defaultBucket.name=my-bucket \
+          --set persistence.enabled=true \
+          --set fullnameOverride=argo-artifacts \
+          --debug 2>&1
+      register: std
+    - debug:
+        var: std.stdout_lines
+    - debug:
+        var: std.stderr_lines          
+#    - name: minio install    ## known issue:  https://github.com/ansible/ansible/issues/64004
+#      helm:
+#        host: localhost
+#        chart:
+##          name: minio
+#          source:
+#            type: git
+#            location: https://github.com/helm/charts.git
+#            path: stable/minio
+#        state: present
+#        name: argo-artifacts
+#        namespace: argo 
+#        values:
+#          service.type: NodePort 
+#          defaultBucket.enabled: true 
+#          defaultBucket.name: my-bucket 
+#          persistence.enabled: true 
+#          fullnameOverride: argo-artifacts
