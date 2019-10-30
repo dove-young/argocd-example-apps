@@ -1,0 +1,60 @@
+- hosts: master
+  vars:
+    argocd_server_external: 9.46.76.93
+  tasks:
+    - name: Clone nfs provider
+      git:
+        repo: 'https://github.com/kubernetes-incubator/external-storage.git'
+        dest: "{{playbook_dir}}/external-storage"
+        depth: 1
+        update: yes
+        force: yes       
+    - name: patch nfs provider
+      patch:
+        src: "{{playbook_dir}}/files/nfs-provider.patch"
+        basedir: "{{playbook_dir}}/external-storage/nfs/deploy/kubernetes"
+    - name: install nfs provider
+      shell: |
+        kubectl create -f class.yaml -f claim.yaml -f psp.yaml -f statefulset.yaml
+        kubectl create -f write-pod.yaml -f read-pod.yaml
+        sleep 5
+        kubectl get po
+      args:
+        chdir: "{{playbook_dir}}/external-storage/nfs/deploy/kubernetes"
+      register: std
+    - debug:
+        var: std.stdout_lines
+    - debug:
+        var: std.stderr_lines
+    - name: get argocd install yaml
+      get_url:
+        url: https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.3/manifests/install.yaml
+        dest: "{{playbook_dir}}/argocd/argocd-1.2.3-install.yaml"
+    - name: prepare argocd patch
+      template:
+        src:  files/argocd-1.2.3.patch.j2
+        dest: /tmp/argocd-1.2.3.patch
+    - name: patch argocd install yaml
+      patch:
+        src: /tmp/argocd-1.2.3.patch
+        basedir: "{{playbook_dir}}/argocd"
+       
+    - name: install ArgoCD
+      shell: |
+        kubectl create ns argocd
+        kubectl apply -n argocd -f argocd-1.2.3-install.yaml
+      args:
+        chdir: "{{playbook_dir}}/argocd"
+    - name: argocd client
+      get_url:
+        url: https://github.com/argoproj/argo-cd/releases/download/v1.2.3/argocd-linux-amd64
+        dest: /usr/local/bin/argocd
+        mode: 755
+    - name: check argocd client
+      shell: |
+          argocd help
+      register: std
+    - debug:
+        var: std.stdout_lines
+    - debug:
+        var: std.stderr_lines          

@@ -1,0 +1,49 @@
+diff --git a/nfs/deploy/kubernetes/class.yaml b/nfs/deploy/     kubernetes/class.yaml
+index 582d0f1..5bc2203 100644
+--- a/nfs/deploy/kubernetes/class.yaml
++++ b/nfs/deploy/kubernetes/class.yaml
+@@ -1,6 +1,8 @@
+ kind: StorageClass
+ apiVersion: storage.k8s.io/v1
+ metadata:
++  annotations:
++    storageclass.kubernetes.io/is-default-class: "true"
+   name: example-nfs
+ provisioner: example.com/nfs
+ mountOptions:
+diff --git a/nfs/deploy/kubernetes/psp.yaml b/nfs/deploy/kubernetes/     psp.yaml
+index 2f8e188..03fd080 100644
+--- a/nfs/deploy/kubernetes/psp.yaml
++++ b/nfs/deploy/kubernetes/psp.yaml
+@@ -1,4 +1,4 @@
+-apiVersion: extensions/v1beta1
++apiVersion: policy/v1beta1
+ kind: PodSecurityPolicy
+ metadata:
+   name: nfs-provisioner
+diff --git a/nfs/deploy/kubernetes/read-pod.yaml b/nfs/deploy/     kubernetes/read-pod.yaml
+index 31497e9..1c4e0f2 100644
+--- a/nfs/deploy/kubernetes/read-pod.yaml
++++ b/nfs/deploy/kubernetes/read-pod.yaml
+@@ -5,7 +5,7 @@ metadata:
+ spec:
+   containers:
+   - name: read-pod
+-    image: gcr.io/google_containers/busybox:1.24
++    image: docker.io/library/busybox:1.24
+     command:
+       - "/bin/sh"
+     args:
+diff --git a/nfs/deploy/kubernetes/write-pod.yaml b/nfs/deploy/     kubernetes/write-pod.yaml
+index 99f7d02..e6c3fb4 100644
+--- a/nfs/deploy/kubernetes/write-pod.yaml
++++ b/nfs/deploy/kubernetes/write-pod.yaml
+@@ -5,7 +5,7 @@ metadata:
+ spec:
+   containers:
+   - name: write-pod
+-    image: gcr.io/google_containers/busybox:1.24
++    image: docker.io/library/busybox:1.24
+     command:
+       - "/bin/sh"
+     args:

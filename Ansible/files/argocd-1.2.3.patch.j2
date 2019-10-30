@@ -1,0 +1,38 @@
+--- argocd-1.2.3-install.yaml	2019-10-16 22:14:03.627716050 -0700
++++ argocd-1.2.3-install-icp.yaml	2019-10-16 22:17:34.049492525 -0700
+@@ -2452,7 +2452,7 @@
+ roleRef:
+   apiGroup: rbac.authorization.k8s.io
+   kind: ClusterRole
+-  name: argocd-application-controller
++  name: cluster-admin
+ subjects:
+ - kind: ServiceAccount
+   name: argocd-application-controller
+@@ -2469,7 +2469,7 @@
+ roleRef:
+   apiGroup: rbac.authorization.k8s.io
+   kind: ClusterRole
+-  name: argocd-server
++  name: ibm-anyuid-clusterrole
+ subjects:
+ - kind: ServiceAccount
+   name: argocd-server
+@@ -2636,6 +2636,8 @@
+     port: 443
+     protocol: TCP
+     targetPort: 8080
++  externalIPs:
++  - {{ argocd_server_external }}
+   selector:
+     app.kubernetes.io/name: argocd-server
+ ---
+@@ -2758,6 +2760,8 @@
+         name: redis
+         ports:
+         - containerPort: 6379
++      securityContext:
++        runAsUser: 999
+ ---
+ apiVersion: apps/v1
+ kind: Deployment

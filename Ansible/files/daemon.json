@@ -1,0 +1,6 @@
+{
+    "live-restore": true,
+    "exec-opts": ["native.cgroupdriver=cgroupfs"],
+    "insecure-registries" : [ "{{docker_registry}}" ],
+    "dns": [ "10.0.0.10", "8.8.8.8" ]
+  }

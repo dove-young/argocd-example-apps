@@ -1,0 +1,46 @@
+- hosts: master
+  tasks:
+    - name: tear down on control plane
+      shell: |
+        export KUBECONFIG=/root/.kube/config
+        kubectl drain {{ item }} --delete-local-data --force --ignore-daemonsets || true
+        kubectl delete node {{ item }} || true
+      with_items: "{{ groups['worker']}}"
+      register: std
+    - debug:
+        var: std.stdout_lines
+    - debug:
+        var: std.stderr_lines
+- hosts: worker
+  tasks:
+    - name: tear down on workers
+      shell: |
+        kubeadm reset -f || true 
+        # iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
+      with_items: "{{ groups['worker']}}"
+      register: std
+    - debug:
+        var: std.stdout_lines
+    - debug:
+        var: std.stderr_lines
+- hosts: master
+  tasks:
+    - name: tear down on control plane
+      shell: |
+        export KUBECONFIG=/root/.kube/config
+        kubectl drain {{ ansible_host }} --delete-local-data --force --ignore-daemonsets || true
+        kubectl delete node {{ ansible_host }} || true
+      register: std
+    - debug:
+        var: std.stdout_lines
+    - debug:
+        var: std.stderr_lines
+    - name: tear down on master
+      shell: |
+        kubeadm reset -f || true 
+        # iptables -F && iptables -t nat -F && iptables -t mangle -F && iptables -X
+      register: std
+    - debug:
+        var: std.stdout_lines
+    - debug:
+        var: std.stderr_lines

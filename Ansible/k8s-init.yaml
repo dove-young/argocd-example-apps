@@ -1,0 +1,132 @@
+- hosts: master worker
+  vars:
+    docker_registry: "9.46.76.93:5000"
+  tasks:
+    - name: yum repository
+      copy:
+        src: files/kubernetes.repo
+        dest: /etc/yum.repos.d/kubernetes.repo
+    - name: selinux disable
+      copy:
+        src: files/selinux.config
+        dest: /etc/selinux/config
+    - name: docker daemon.json
+      template:
+        src: files/daemon.json
+        dest: /etc/docker/daemon.json
+    - name: docker service config
+      lineinfile:
+        path: /usr/lib/systemd/system/docker.service
+        regexp: '^ExecStart='
+        state: present
+        line: 'ExecStart=/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock'
+    - name: restart docker
+      systemd: 
+        name: docker
+        daemon_reload: yes
+        state: restarted
+    - name: install kubeadm
+      yum:
+        name:
+          - kubelet 
+          - kubeadm 
+          - kubectl
+        disable_excludes:
+          - kubernetes
+- hosts: master
+  tasks: 
+    - name: kubeadm image pull
+      shell: |
+        kubeadm config images pull
+      register: std
+    - debug:
+        var: std.stdout_lines
+    - debug:
+        var: std.stderr_lines        
+    - name: init K8S master
+      shell: |
+        swapoff -a     
+        kubeadm init --pod-network-cidr=192.168.0.0/16 \
+          --apiserver-advertise-address={{ ansible_host }} \
+          --control-plane-endpoint={{ ansible_host }} \
+          --node-name={{ ansible_host }} 2>&1 | tee /tmp/kubeadm-init-master.log
+         
+        mkdir -p $HOME/.kube
+        cat /etc/kubernetes/admin.conf > $HOME/.kube/config
+      register: std
+    - debug:
+        var: std.stdout_lines
+    - debug:
+        var: std.stderr_lines 
+    - name: fetch worker join
+      shell: |
+        tail -n 2 kubeadm-init-master.log
+      args:
+        chdir: /tmp
+      register: init_worker_cmd        
+    - file: 
+        name: /tmp/init-worker-{{ item }}.sh
+        state: absent
+      with_items: "{{ groups['worker']}}"
+    - name: set woker file
+      blockinfile:
+        path: /tmp/init-worker-{{ item }}.sh
+        create: yes
+        block: |
+          swapoff -a
+          {{ init_worker_cmd.stdout_lines[-2] }}
+          {{ init_worker_cmd.stdout_lines[-1] }} \
+              --node-name {{ item }}
+      with_items: "{{ groups['worker']}}"
+    - shell: |
+        cat /tmp/init-worker-{{ item }}.sh
+      register: cat_block
+      with_items: "{{ groups['worker']}}" 
+- hosts: worker
+  tasks: 
+    - copy:
+        src: /tmp/init-worker-{{ ansible_host }}.sh
+        dest: /tmp/init-worker-{{ ansible_host }}.sh
+    - name: Check K8S workers
+      shell: |
+        cat /tmp/init-worker-{{ ansible_host }}.sh
+      register: std
+    - debug:
+        var: std.stdout_lines
+    - debug:
+        var: std.stderr_lines 
+    - name: init K8S workers
+      shell: |
+        bash -x /tmp/init-worker-{{ ansible_host }}.sh
+      register: std
+    - debug:
+        var: std.stdout_lines
+    - debug:
+        var: std.stderr_lines
+- hosts: master
+  tasks:
+    - name: Check node before install Calico
+      shell: |
+        kubectl get nodes
+      register: std
+    - debug:
+        var: std.stdout_lines
+    - debug:
+        var: std.stderr_lines  
+    - name: Install Calico
+      shell: |
+        kubectl create -f https://docs.projectcalico.org/v3.10/manifests/calico.yaml
+      register: std
+    - debug:
+        var: std.stdout_lines
+    - debug:
+        var: std.stderr_lines
+    - name: Check node after install Calico
+      shell: |
+        sleep 15
+        kubectl get nodes
+      register: std
+    - debug:
+        var: std.stdout_lines
+    - debug:
+        var: std.stderr_lines      
