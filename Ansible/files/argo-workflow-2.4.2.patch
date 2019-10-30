@@ -1,0 +1,30 @@
+--- argo-workflow-install-2.4.2.yaml.origin     2019-10-16 22:57:20.081560630 -0700
+--- argo/argo-2.4.2-install.yaml.origin 2019-10-29 21:57:28.300616682 -0700
++++ argo/argo-2.4.2-install.yaml        2019-10-29 21:58:45.435776814 -0700
+@@ -251,6 +251,25 @@
+ kind: ConfigMap
+ metadata:
+   name: workflow-controller-configmap
++data:
++  config: |
++    ContainerRuntimeExecutor: kubelet
++    artifactRepository:
++      s3:
++        bucket: my-bucket
++        endpoint: argo-artifacts.argo:9000
++        insecure: true
++        # accessKeySecret and secretKeySecret are secret selectors.
++        # It references the k8s secret named 'argo-artifacts'
++        # which was created during the minio helm install. The keys,
++        # 'accesskey' and 'secretkey', inside that secret are where the
++        # actual minio credentials are stored.
++        accessKeySecret:
++          name: argo-artifacts
++          key: accesskey
++        secretKeySecret:
++          name: argo-artifacts
++          key: secretkey
+ ---
+ apiVersion: v1
+ kind: Service
+ 

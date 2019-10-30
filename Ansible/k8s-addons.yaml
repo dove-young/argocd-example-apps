@@ -1,21 +1,22 @@
 - hosts: master
   tasks:
-    - name: install mandatory
-      shell: |
-        kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/mandatory.yaml
-      register: std
-    - debug:
-        var: std.stdout_lines
-    - debug:
-        var: std.stderr_lines
-    - name: install ingress
-      shell: |
-        kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/baremetal/service-nodeport.yaml
-      register: std
-    - debug:
-        var: std.stdout_lines
-    - debug:
-        var: std.stderr_lines
+    - name: get addons
+      get_url:
+        url: "{{item.url}}"
+        dest: "{{item.name}}"
+      with_items:
+      - {name: 'addons/ingress-mandatory.yaml', url: https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/mandatory.yaml}
+      - {name: 'addons/ingress-service-nodeport.yaml', url: https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/baremetal/service-nodeport.yaml}
+      - {name: 'addons/dashboard-recommended.yaml', url: https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta4/aio/deploy/recommended.yaml}
+    - name: install nfs provider
+      k8s:                  ## yum install -y python2-openshift.noarch  in advance
+        state: present
+        src: "{{item}}"
+        kubeconfig: /root/.kube/config
+      with_items:
+      - {name: 'addons/ingress-mandatory.yaml'}
+      - {name: 'addons/ingress-service-nodeport.yaml'}
+      - {name: 'addons/dashboard-recommended.yaml'}
     - name: verify ingress install
       shell: |
         sleep 10
@@ -25,43 +26,31 @@
         var: std.stdout_lines
     - debug:
         var: std.stderr_lines
-    - name: Install Dashboard
-      shell: |
-        kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta4/aio/deploy/recommended.yaml
-      register: std
-    - debug:
-        var: std.stdout_lines
-    - debug:
-        var: std.stderr_lines        
     - name: Create serviceaccount for dashboard
-      shell: |
-        kubectl create sa kubernetes-dashboard -n kube-system
-      register: std
-    - debug:
-        var: std.stdout_lines
-    - debug:
-        var: std.stderr_lines        
+      k8s:
+        name: kubernetes-dashboard
+        api_version: v1
+        kind: ServiceAccount
+        state: present
+        namespace: kube-system
+        kubeconfig: /root/.kube/config              
     - name: Create ClusterRoleBinding for dashboard
-      shell: |
-        kubectl apply -f - <<EOF
-        apiVersion: rbac.authorization.k8s.io/v1beta1
-        kind: ClusterRoleBinding
-        metadata:
-          name: admin-user
-        roleRef:
-          apiGroup: rbac.authorization.k8s.io
-          kind: ClusterRole
-          name: cluster-admin
-        subjects:
-        - kind: ServiceAccount
-          name: kubernetes-dashboard
-          namespace: kube-system
-        EOF
-      register: std
-    - debug:
-        var: std.stdout_lines
-    - debug:
-        var: std.stderr_lines        
+    - name: install argo workflow - cluster-role
+      k8s:
+        state: present
+        definition: 
+          apiVersion: rbac.authorization.k8s.io/v1beta1
+          kind: ClusterRoleBinding
+          metadata:
+            name: admin-user
+          roleRef:
+            apiGroup: rbac.authorization.k8s.io
+            kind: ClusterRole
+            name: cluster-admin
+          subjects:
+          - kind: ServiceAccount
+            name: kubernetes-dashboard
+            namespace: kube-system       
     - name: get dashboard login token
       shell: |
         kubectl -n kube-system describe secrets         \
