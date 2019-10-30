@@ -5,9 +5,9 @@
         url: "{{item.url}}"
         dest: "{{item.name}}"
       with_items:
-      - {name: 'addons/ingress-mandatory.yaml', url: https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/mandatory.yaml}
-      - {name: 'addons/ingress-service-nodeport.yaml', url: https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/baremetal/service-nodeport.yaml}
-      - {name: 'addons/dashboard-recommended.yaml', url: https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta4/aio/deploy/recommended.yaml}
+      - {name: 'addons/ingress-mandatory.yaml', url: 'https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/mandatory.yaml'}
+      - {name: 'addons/ingress-service-nodeport.yaml', url: 'https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/baremetal/service-nodeport.yaml'}
+      - {name: 'addons/dashboard-recommended.yaml', url: 'https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta4/aio/deploy/recommended.yaml'}
     - name: install nfs provider
       k8s:                  ## yum install -y python2-openshift.noarch  in advance
         state: present
@@ -34,7 +34,6 @@
         state: present
         namespace: kube-system
         kubeconfig: /root/.kube/config              
-    - name: Create ClusterRoleBinding for dashboard
     - name: install argo workflow - cluster-role
       k8s:
         state: present
@@ -61,4 +60,55 @@
     - debug:
         var: std.stdout_lines
     - debug:
-        var: std.stderr_lines             
+        var: std.stderr_lines
+    - name: get helm client
+      unarchive:
+        src: https://get.helm.sh/helm-v2.15.2-linux-amd64.tar.gz
+        dest: /tmp/
+        list_files: yes
+        remote_src: yes
+    - name: init helm
+      shell: |
+        #tar -xzf /tmp/helm-v2.15.2-linux-amd64.tar.gz
+        #ls /tmp
+        #ls /tmp/linux-amd64
+        chmod +x /tmp/linux-amd64/helm
+        mv /tmp/linux-amd64/helm /usr/local/bin/
+        helm init --debug
+      register: std
+    - debug:
+        var: std.stdout_lines
+    - debug:
+        var: std.stderr_lines
+    - name: install ansible modules
+      yum: 
+        name:
+          - python
+          - python2-openshift
+          - python2-pip.noarch
+    - name: update pip
+      pip:
+        name: pip
+        extra_args: --upgrade
+    - name: install pyhelm
+      pip:
+        name: pyhelm
+        state: present
+        extra_args: --upgrade
+    - name: helm cluster-role
+      k8s:
+        state: present
+        definition: 
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRoleBinding
+          metadata:
+            name: kube-system-binding-default
+          roleRef:
+            apiGroup: rbac.authorization.k8s.io
+            kind: ClusterRole
+            name: cluster-admin
+          subjects:
+          - kind: ServiceAccount
+            name: default
+            namespace: kube-system 
+
