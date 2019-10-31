@@ -32,10 +32,10 @@
       get_url:
         url: https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.3/manifests/install.yaml
         dest: "{{playbook_dir}}/argocd/argocd-1.2.3-install.yaml"
-    - name: prepare argocd patch
-      template:
-        src:  files/argocd-1.2.3.patch.j2
-        dest: /tmp/argocd-1.2.3.patch
+#    - name: prepare argocd patch
+#      template:
+#        src:  files/argocd-1.2.3.patch.j2
+#        dest: /tmp/argocd-1.2.3.patch
     - name: patch argocd install yaml
       patch:
         src: /tmp/argocd-1.2.3.patch
@@ -121,7 +121,25 @@
     - debug:
         var: std.stdout_lines
     - debug:
-        var: std.stderr_lines          
+        var: std.stderr_lines    
+        
+    - name: define ingress for argo-ui
+      k8s:
+        state: present
+        definition:
+          apiVersion: extensions/v1beta1
+          kind: Ingress
+          metadata:
+            name: argo-ui-ingress
+            namespace: argo
+          spec:
+            rules:
+            - host: argo-ui.{{ groups['master'][0]}}.nip.io
+              http:
+                paths:
+                - backend:
+                    serviceName: argo-ui
+                    servicePort: 80          
 #    - name: minio install    ## known issue:  https://github.com/ansible/ansible/issues/64004
 #      helm:
 #        host: localhost

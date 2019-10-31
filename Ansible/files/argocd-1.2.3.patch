@@ -1,5 +1,5 @@
---- argocd-1.2.3-install.yaml	2019-10-16 22:14:03.627716050 -0700
-+++ argocd-1.2.3-install-icp.yaml	2019-10-16 22:17:34.049492525 -0700
+--- argocd-1.2.3-install.yaml   2019-10-23 00:38:22.892542296 -0700
++++ argocd-1.2.3-install.yaml   2019-10-31 00:10:15.517191978 -0700
 @@ -2452,7 +2452,7 @@
  roleRef:
    apiGroup: rbac.authorization.k8s.io
@@ -18,16 +18,15 @@
  subjects:
  - kind: ServiceAccount
    name: argocd-server
-@@ -2636,6 +2636,8 @@
+@@ -2636,6 +2636,7 @@
      port: 443
      protocol: TCP
      targetPort: 8080
-+  externalIPs:
-+  - {{ argocd_server_external }}
++  type: NodePort
    selector:
      app.kubernetes.io/name: argocd-server
  ---
-@@ -2758,6 +2760,8 @@
+@@ -2758,6 +2759,8 @@
          name: redis
          ports:
          - containerPort: 6379
