@@ -1,4 +1,4 @@
-diff --git a/nfs/deploy/kubernetes/class.yaml b/nfs/deploy/     kubernetes/class.yaml
+diff --git a/nfs/deploy/kubernetes/class.yaml b/nfs/deploy/kubernetes/class.yaml
 index 582d0f1..5bc2203 100644
 --- a/nfs/deploy/kubernetes/class.yaml
 +++ b/nfs/deploy/kubernetes/class.yaml
@@ -11,7 +11,7 @@ index 582d0f1..5bc2203 100644
    name: example-nfs
  provisioner: example.com/nfs
  mountOptions:
-diff --git a/nfs/deploy/kubernetes/psp.yaml b/nfs/deploy/kubernetes/     psp.yaml
+diff --git a/nfs/deploy/kubernetes/psp.yaml b/nfs/deploy/kubernetes/psp.yaml
 index 2f8e188..03fd080 100644
 --- a/nfs/deploy/kubernetes/psp.yaml
 +++ b/nfs/deploy/kubernetes/psp.yaml
@@ -21,7 +21,7 @@ index 2f8e188..03fd080 100644
  kind: PodSecurityPolicy
  metadata:
    name: nfs-provisioner
-diff --git a/nfs/deploy/kubernetes/read-pod.yaml b/nfs/deploy/     kubernetes/read-pod.yaml
+diff --git a/nfs/deploy/kubernetes/read-pod.yaml b/nfs/deploy/kubernetes/read-pod.yaml
 index 31497e9..1c4e0f2 100644
 --- a/nfs/deploy/kubernetes/read-pod.yaml
 +++ b/nfs/deploy/kubernetes/read-pod.yaml
@@ -34,7 +34,7 @@ index 31497e9..1c4e0f2 100644
      command:
        - "/bin/sh"
      args:
-diff --git a/nfs/deploy/kubernetes/write-pod.yaml b/nfs/deploy/     kubernetes/write-pod.yaml
+diff --git a/nfs/deploy/kubernetes/write-pod.yaml b/nfs/deploy/kubernetes/write-pod.yaml
 index 99f7d02..e6c3fb4 100644
 --- a/nfs/deploy/kubernetes/write-pod.yaml
 +++ b/nfs/deploy/kubernetes/write-pod.yaml
