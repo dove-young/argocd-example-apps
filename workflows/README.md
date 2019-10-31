@@ -10,7 +10,11 @@
 - [base](base) 
 
 # Docs
+## On K8S cluster
+- [Setup everything on K8S cluster](../Ansible/README.md)
+## On ICP cluster
 - [Setup Argo on ICP](INSTALL-On-ICP.md)
 - [Setup Minio on ICP](https://github.ibm.com/APM/AgentDeployment/wiki/ArgoCD---Argo-workflow---Minio-Setup-on-ICP)
+## Mics
 - [Argo official doc](https://github.com/argoproj/argo)
 - [Setup local argo env and dev workflow](WORKFLOW.md)
