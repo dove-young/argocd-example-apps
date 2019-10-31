@@ -78,17 +78,6 @@
           - kind: ServiceAccount
             name: kubernetes-dashboard
             namespace: kube-system       
-    - name: get dashboard login token
-      shell: |
-        kubectl -n kube-system describe secrets         \
-            `kubectl -n kube-system get secrets |       \
-             awk '/kubernetes-dashboard/ {print $1}'` | \
-             awk '/token:/ {print $2}'
-      register: std
-    - debug:
-        var: std.stdout_lines
-    - debug:
-        var: std.stderr_lines
 
     - name: install ansible modules
       yum: 
@@ -150,3 +139,14 @@
     - debug:
         var: std.stderr_lines
         
+    - name: get dashboard login token
+      shell: |
+        kubectl -n kube-system describe secrets         \
+            `kubectl -n kube-system get secrets |       \
+             awk '/kubernetes-dashboard/ {print $1}'` | \
+             awk '/token:/ {print $2}'
+      register: std
+    - debug:
+        var: std.stdout_lines
+    - debug:
+        var: std.stderr_lines
