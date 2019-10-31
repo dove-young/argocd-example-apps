@@ -9,11 +9,13 @@
         dest: "{{playbook_dir}}/external-storage"
         depth: 1
         update: yes
-        force: yes       
+        force: yes
     - name: patch nfs provider
       patch:
         src: "{{playbook_dir}}/files/nfs-provider.patch"
-        basedir: "{{playbook_dir}}/external-storage/nfs/deploy/kubernetes"
+#        basedir: "{{playbook_dir}}/external-storage/nfs/deploy/kubernetes"
+        basedir: "{{playbook_dir}}/external-storage"
+        strip: 1         # known issue: https://github.com/ansible/ansible/issues/64130
     - name: install nfs provider
       k8s:                  ## yum install -y python2-openshift.noarch  in advance
         state: present

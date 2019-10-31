@@ -3,29 +3,57 @@
     - name: get addons
       get_url:
         url: "{{item.url}}"
-        dest: "{{item.name}}"
+        dest: "{{item.local}}"
+        force: yes
       with_items:
-      - {name: 'addons/ingress-mandatory.yaml', url: 'https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/mandatory.yaml'}
-      - {name: 'addons/ingress-service-nodeport.yaml', url: 'https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/baremetal/service-nodeport.yaml'}
-      - {name: 'addons/dashboard-recommended.yaml', url: 'https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta4/aio/deploy/recommended.yaml'}
-    - name: install nfs provider
-      k8s:                  ## yum install -y python2-openshift.noarch  in advance
-        state: present
-        src: "{{item}}"
-        kubeconfig: /root/.kube/config
-      with_items:
-      - {name: 'addons/ingress-mandatory.yaml'}
-      - {name: 'addons/ingress-service-nodeport.yaml'}
-      - {name: 'addons/dashboard-recommended.yaml'}
-    - name: verify ingress install
+      - {local: "{{playbook_dir}}/addons/ingress-mandatory.yaml", url: 'https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/mandatory.yaml'}
+      - {local: "{{playbook_dir}}/addons/ingress-service-nodeport.yaml", url: 'https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/baremetal/service-nodeport.yaml'}
+      - {local: "{{playbook_dir}}/addons/dashboard-recommended.yaml", url: 'https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta4/aio/deploy/recommended.yaml'}
+    - name: get helm client
+      unarchive:
+        src: https://get.helm.sh/helm-v2.15.2-linux-amd64.tar.gz
+        dest: /tmp/
+        list_files: yes
+        remote_src: yes
+
+    - name: init helm
       shell: |
-        sleep 10
-        kubectl get pods --all-namespaces -l app.kubernetes.io/name=ingress-nginx 
+        #tar -xzf /tmp/helm-v2.15.2-linux-amd64.tar.gz
+        #ls /tmp
+        #ls /tmp/linux-amd64
+        chmod +x /tmp/linux-amd64/helm
+        mv /tmp/linux-amd64/helm /usr/local/bin/
+        helm init --debug
       register: std
     - debug:
         var: std.stdout_lines
     - debug:
         var: std.stderr_lines
+    - name: helm cluster-role
+      k8s:
+        state: present
+        definition: 
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRoleBinding
+          metadata:
+            name: kube-system-binding-default
+          roleRef:
+            apiGroup: rbac.authorization.k8s.io
+            kind: ClusterRole
+            name: cluster-admin
+          subjects:
+          - kind: ServiceAccount
+            name: default
+            namespace: kube-system 
+    - name: install addons
+      k8s:                  ## yum install -y python2-openshift.noarch  in advance
+        state: present
+        src: "{{item.name}}"
+        kubeconfig: /root/.kube/config
+      with_items:                                  ## known issue: https://github.com/ansible/ansible/issues/64129
+ #     - {name: "{{playbook_dir}}/addons/ingress-mandatory.yaml"}
+ #     - {name: "{{playbook_dir}}/addons/ingress-service-nodeport.yaml"}
+      - {name: "{{playbook_dir}}/addons/dashboard-recommended.yaml"}
     - name: Create serviceaccount for dashboard
       k8s:
         name: kubernetes-dashboard
@@ -61,25 +89,7 @@
         var: std.stdout_lines
     - debug:
         var: std.stderr_lines
-    - name: get helm client
-      unarchive:
-        src: https://get.helm.sh/helm-v2.15.2-linux-amd64.tar.gz
-        dest: /tmp/
-        list_files: yes
-        remote_src: yes
-    - name: init helm
-      shell: |
-        #tar -xzf /tmp/helm-v2.15.2-linux-amd64.tar.gz
-        #ls /tmp
-        #ls /tmp/linux-amd64
-        chmod +x /tmp/linux-amd64/helm
-        mv /tmp/linux-amd64/helm /usr/local/bin/
-        helm init --debug
-      register: std
-    - debug:
-        var: std.stdout_lines
-    - debug:
-        var: std.stderr_lines
+
     - name: install ansible modules
       yum: 
         name:
@@ -95,20 +105,48 @@
         name: pyhelm
         state: present
         extra_args: --upgrade
-    - name: helm cluster-role
-      k8s:
-        state: present
-        definition: 
-          apiVersion: rbac.authorization.k8s.io/v1
-          kind: ClusterRoleBinding
-          metadata:
-            name: kube-system-binding-default
-          roleRef:
-            apiGroup: rbac.authorization.k8s.io
-            kind: ClusterRole
-            name: cluster-admin
-          subjects:
-          - kind: ServiceAccount
-            name: default
-            namespace: kube-system 
 
+  #  -  k8s:                       ## known issue: https://github.com/ansible/ansible/issues/64129
+  #      name: ingress-nginx
+  #      api_version: v1
+  #      kind: Namespace
+  #      state: present
+  #      kubeconfig: /root/.kube/config       
+  #  - name: ingress-mond 
+  #    k8s:
+  #      state: present
+  #      src:  "{{playbook_dir}}/addons/ingress-mandatory.yaml"
+  #      kubeconfig: /root/.kube/config
+  #  - name: ingress-svc
+  #    k8s:
+  #      state: present
+  #      src:  "{{playbook_dir}}/addons/ingress-service-nodeport.yaml"
+  #      kubeconfig: /root/.kube/config
+
+    - name: install mandatory
+      shell: |
+        kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/mandatory.yaml
+      register: std
+    - debug:
+        var: std.stdout_lines
+    - debug:
+        var: std.stderr_lines
+    - name: install ingress
+      shell: |
+        kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/baremetal/service-nodeport.yaml
+      register: std
+    - debug:
+        var: std.stdout_lines
+    - debug:
+        var: std.stderr_lines
+
+    - name: verify ingress install
+      shell: |
+        sleep 10
+        kubectl get pods --all-namespaces -l app.kubernetes.io/name=ingress-nginx 
+      register: std
+    - debug:
+        var: std.stdout_lines
+    - debug:
+        var: std.stderr_lines
+        
