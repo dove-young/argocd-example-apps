@@ -4,7 +4,7 @@ metadata:
   generateName: argo-example-
 spec:
   entrypoint: argo-workflow-example
-  serviceAccountName: argo
+#  serviceAccountName: argo
   arguments:
     parameters:
     - name: docker-context
@@ -25,6 +25,9 @@ spec:
       value: ibm-cloud-apm-dc-configpack.tar
     - name: artifacts-path
       value: "incidents"
+  volumes:
+  - name: vol
+    emptyDir: {}      
   templates:
   - name: argo-workflow-example
     steps:
@@ -151,6 +154,9 @@ spec:
         value: "https://rtpgsa.ibm.com/projects/i/itm_db2_agent/nodejs/cloudnative/NPMCD"
       - name: nodejs_dc_build_name
         value: nodejs_datacollector.tgz
+      volumeMounts:
+        - mountPath: "{{inputs.parameters.workspace}}/outputs"
+          name: vol        
       source: |
         set -o xtrace
         #find {{inputs.parameters.workspace}}
@@ -184,10 +190,12 @@ spec:
         sed -i -e 's#npm install > /dev/null#npm install --loglevel silly#' sample-rest-api2/pets/Dockerfile
         #tar -czf ${WORKSPACE}/nodejs-pets.tar.gz sample-rest-api2/pets 
         #ls -lh ${WORKSPACE}/nodejs-pets.tar.gz
+        cd ${WORKSPACE}
+        mv AVT  ${WORKSPACE}/outputs/
     outputs:
       artifacts:
       - name: nodejs-pets
-        path: "{{inputs.parameters.workspace}}/AVT/workspace/sample-rest-api2/pets"
+        path: "{{inputs.parameters.workspace}}/outputs/AVT/workspace/sample-rest-api2/pets"
 
   - name: check-nodejs-pets
     inputs:
