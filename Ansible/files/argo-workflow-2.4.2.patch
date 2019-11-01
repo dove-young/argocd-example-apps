@@ -8,6 +8,7 @@
 +data:
 +  config: |
 +    ContainerRuntimeExecutor: kubelet
++    kubeletInsecure: true
 +    artifactRepository:
 +      s3:
 +        bucket: my-bucket
