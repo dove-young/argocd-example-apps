@@ -139,7 +139,20 @@
                 paths:
                 - backend:
                     serviceName: argo-ui
-                    servicePort: 80          
+                    servicePort: 80 
+    - name: RBAC     ## https://github.com/argoproj/argo/issues/1723
+      shell: |
+        kubectl create clusterrolebinding argo-default-cluster-admin \
+              --clusterrole=cluster-admin \
+              --serviceaccount=argo:default 
+        kubectl create clusterrolebinding default-default-cluster-admin \
+              --clusterrole=cluster-admin \
+              --serviceaccount=default:default 
+      register: std
+    - debug:
+        var: std.stdout_lines
+    - debug:
+        var: std.stderr_lines
 #    - name: minio install    ## known issue:  https://github.com/ansible/ansible/issues/64004
 #      helm:
 #        host: localhost
