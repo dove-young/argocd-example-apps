@@ -1,0 +1,29 @@
+--- github-event-source.cm-ee.yaml      2019-11-06 18:51:32.961766971 -0800
++++ github-event-source.cm-ee.yaml      2019-11-06 18:46:26.621465854 -0800
+@@ -12,19 +12,22 @@
+ data:
+   example: |-
+     # owner of the repo
+-    owner: "argoproj"
++    owner: "yangboh"
+     # repository name
+-    repository: "argo-events"
++    repository: "argocd-example-apps"
+     # Github will send events to following port and endpoint
++    id: 5415689
++    githubBaseURL: "https://github.ibm.com/api/v3/"
++    githubUploadURL: "https://github.ibm.com/api/v3/upload"
+     hook:
+      # endpoint to listen to events on
+      endpoint: "/push"
+      # port to run internal HTTP server on
+-     port: "12000"
++     port: "{{ events.port }}"
+      # url the gateway will use to register at Github.
+      # This url must be reachable from outside the cluster.
+      # The gateway pod is backed by the service defined in the gateway spec. So get the URL for that service Github can reach to.
+-     url: "http://myfakeurl.fake"
++     url: "http://{{ groups['worker'][0] }}:12000"
+     # type of events to listen to.
+     # following listens to everything, hence *
+     # You can find more info on https://developer.github.com/v3/activity/events/types/

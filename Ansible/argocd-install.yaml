@@ -1,0 +1,63 @@
+- name: Clone nfs provider
+  tags:
+  - storage
+  git:
+    repo: 'https://github.com/kubernetes-incubator/external-storage.git'
+    dest: "{{playbook_dir}}/external-storage"
+    depth: 1
+    update: yes
+    force: yes
+- name: patch nfs provider
+  tags:
+  - storage
+  patch:
+    src: "{{playbook_dir}}/files/nfs-provider.patch"
+    basedir: "{{playbook_dir}}/external-storage"
+    strip: 1         # known issue: https://github.com/ansible/ansible/issues/64130
+- name: install nfs provider
+  tags:
+  - storage
+  k8s:                  ## yum install -y python2-openshift.noarch  in advance
+    state: present
+    src: "{{nfs_src}}/{{item}}"
+    kubeconfig: /root/.kube/config
+    namespace: default
+  with_list:
+    - class.yaml
+    - claim.yaml
+    - psp.yaml
+    - rbac.yaml
+    - statefulset.yaml
+- name: get argocd install yaml
+  get_url:
+    url: https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.3/manifests/install.yaml
+    dest: "{{playbook_dir}}/argocd/argocd-1.2.3-install.yaml"
+- name: patch argocd install yaml
+  patch:
+    src: /tmp/argocd-1.2.3.patch
+    basedir: "{{playbook_dir}}/argocd"
+- name: Create argocd namespace
+  k8s:
+    name: argocd
+    api_version: v1
+    kind: Namespace
+    state: present
+    kubeconfig: /root/.kube/config 
+- k8s:
+    state: present
+    src: "{{playbook_dir}}/argocd/argocd-1.2.3-install.yaml"
+    kubeconfig: /root/.kube/config
+    namespace: argocd
+- name: argocd client
+  get_url:
+    url: https://github.com/argoproj/argo-cd/releases/download/v1.2.3/argocd-linux-amd64
+    dest: /usr/local/bin/argocd
+    mode: 755
+- name: check argocd client
+  shell: |
+      argocd help
+  register: std
+- debug:
+    var: std.stdout_lines
+- debug:
+    var: std.stderr_lines

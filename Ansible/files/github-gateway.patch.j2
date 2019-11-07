@@ -1,0 +1,37 @@
+--- github-gateway.yaml 2019-11-06 18:34:37.498132205 -0800
++++ github-gateway.yaml 2019-11-06  00:42:22.734601999 -0800
+@@ -24,11 +24,17 @@
+     spec:
+       containers:
+         - name: "gateway-client"
+-          image: "argoproj/gateway-client"
++          env:
++          - name: DEBUG_LOG
++            value: "true"
++          image: "argoproj/gateway-client:v0.10"
+           imagePullPolicy: "Always"
+           command: ["/bin/gateway-client"]
+         - name: "github-events"
+-          image: "argoproj/github-gateway"
++          env:
++          - name: DEBUG_LOG
++            value: "true"
++          image: "argoproj/github-gateway:v0.10"
+           imagePullPolicy: "Always"
+           command: ["/bin/github-gateway"]
+       serviceAccountName: "argo-events-sa"
+@@ -38,10 +44,12 @@
+     spec:
+       selector:
+         gateway-name: "github-gateway"
++      externalIPs:
++      - {{ groups['worker'][0] }}
+       ports:
+         - port: 12000
+-          targetPort: 12000
+-      type: LoadBalancer
++          targetPort: {{ events.port }}
++      type: ClusterIP
+   watchers:
+     sensors:
+       - name: "github-sensor"
