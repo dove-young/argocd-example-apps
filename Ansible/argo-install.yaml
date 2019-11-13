@@ -16,8 +16,9 @@
         namespace: kube-system 
 - name: get argo workflow install yaml
   get_url:
-    url: https://raw.githubusercontent.com/argoproj/argo/v2.4.2/manifests/install.yaml
-    dest: "{{playbook_dir}}/argo/argo-2.4.2-install.yaml"
+    url: https://raw.githubusercontent.com/argoproj/argo/v{{argo.version}}/manifests/install.yaml
+    dest: "{{playbook_dir}}/argo/argo-{{argo.version}}-install.yaml"
+    force: yes
 - name: Create argo namespace
   k8s:
     name: argo
@@ -27,35 +28,54 @@
     kubeconfig: /root/.kube/config 
 - name: patch argo workflow installer
   patch:
-    src: "{{playbook_dir}}/files/argo-workflow-2.4.2.patch"
-    dest: "{{playbook_dir}}/argo/argo-2.4.2-install.yaml"
+    src: "{{playbook_dir}}/files/argo-workflow-{{argo.version}}.patch"
+    dest: "{{playbook_dir}}/argo/argo-{{argo.version}}-install.yaml"
 - k8s:
     state: present
-    src: "{{playbook_dir}}/argo/argo-2.4.2-install.yaml"
+    src: "{{playbook_dir}}/argo/argo-{{argo.version}}-install.yaml"
     kubeconfig: /root/.kube/config
     namespace: argo
 - name: argo client
   get_url:
-    url: https://github.com/argoproj/argo/releases/download/v2.4.2/argo-linux-amd64
+    url: https://github.com/argoproj/argo/releases/download/v{{argo.version}}/argo-linux-amd64
     dest: /usr/local/bin/argo
     mode: 755
-- name: minio install
-  shell: |
-    helm install stable/minio \
-      --name argo-artifacts \
-      --namespace argo \
-      --set service.type=NodePort \
-      --set defaultBucket.enabled=true \
-      --set defaultBucket.name=my-bucket \
-      --set persistence.enabled=true \
-      --set fullnameOverride=argo-artifacts \
-      --debug 2>&1
-  register: std
-- debug:
-    var: std.stdout_lines
-- debug:
-    var: std.stderr_lines    
-    
+    force: yes
+#- name: minio install
+#  shell: |
+#    helm install stable/minio \
+#      --name argo-artifacts \
+#      --namespace argo \
+#      --set service.type=NodePort \
+#      --set defaultBucket.enabled=true \
+#      --set defaultBucket.name=my-bucket \
+#      --set persistence.enabled=true \
+#      --set fullnameOverride=argo-artifacts \
+#      --debug 2>&1
+#  register: std
+#- debug:
+#    var: std.stdout_lines
+#- debug:
+#    var: std.stderr_lines    
+- name: minio install    ## known issue:  https://github.com/ansible/ansible/issues/64004
+  helm:
+    host: "{{tiller.endpoint}}"
+    port: "{{tiller.port}}"
+    chart:
+      name: minio
+      source:
+        type: git
+        location: https://github.com/helm/charts.git
+        path: stable/minio
+    state: present
+    name: argo-artifacts
+    namespace: argo 
+    values:
+      service.type: NodePort 
+      defaultBucket.enabled: true 
+      defaultBucket.name: my-bucket 
+      persistence.enabled: true 
+      fullnameOverride: argo-artifacts
 - name: define ingress for argo-ui
   k8s:
     state: present
@@ -108,21 +128,3 @@
         namespace: default
     kubeconfig: /root/.kube/config
 
-#- name: minio install    ## known issue:  https://github.com/ansible/ansible/issues/64004
-#  helm:
-#    host: localhost
-#    chart:
-#       name: minio
-#      source:
-#        type: git
-#        location: https://github.com/helm/charts.git
-#        path: stable/minio
-#    state: present
-#    name: argo-artifacts
-#    namespace: argo 
-#    values:
-#      service.type: NodePort 
-#      defaultBucket.enabled: true 
-#      defaultBucket.name: my-bucket 
-#      persistence.enabled: true 
-#      fullnameOverride: argo-artifacts

@@ -1,7 +1,7 @@
 - hosts: master worker
-  vars:
-    docker_registry: "9.46.76.93:5000"
   tasks:
+    - name: vars
+      include_vars: vars.yaml
     - name: yum repository
       copy:
         src: files/kubernetes.repo

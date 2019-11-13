@@ -1,13 +1,7 @@
 - hosts: master
-  vars:
-    argocd_server_external: "{{ groups['worker'][0]}}"
-    nfs_src: "{{playbook_dir}}/external-storage/nfs/deploy/kubernetes"
-    events:
-      port: 9332
-      github_access_token: my-token
-      github_access_secret: my-secret
-
   tasks:
+    - name: vars
+      include_vars: vars.yaml
     - name: argocd-install
       include: argocd-install.yaml
       tags:

@@ -1,24 +1,39 @@
 - hosts: master
   tasks:
+    - name: install ansible modules
+      yum: 
+        name:
+          - python
+          - python2-openshift
+          - python2-pip.noarch
+    - name: update pip
+      pip:
+        name: pip
+        extra_args: --upgrade
+    - name: install pyhelm
+      pip:
+        name: pyhelm
+        state: present
+        extra_args: --upgrade
     - name: get addons
       get_url:
         url: "{{item.url}}"
         dest: "{{item.local}}"
         force: yes
       with_items:
-      - {local: "{{playbook_dir}}/addons/ingress-mandatory.yaml", url: 'https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/mandatory.yaml'}
-      - {local: "{{playbook_dir}}/addons/ingress-service-nodeport.yaml", url: 'https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/baremetal/service-nodeport.yaml'}
-      - {local: "{{playbook_dir}}/addons/dashboard-recommended.yaml", url: 'https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta4/aio/deploy/recommended.yaml'}
+      - {local: "{{playbook_dir}}/addons/ingress-mandatory.yaml",         url: "{{k8s.ingress_install_url}}"}
+      - {local: "{{playbook_dir}}/addons/ingress-service-nodeport.yaml",  url: "{{k8s.ingress_service_install_url"}
+      - {local: "{{playbook_dir}}/addons/dashboard-recommended.yaml",     url: "{{k8s.dashboard_install_url}}" }
     - name: get helm client
       unarchive:
-        src: https://get.helm.sh/helm-v2.15.2-linux-amd64.tar.gz
+        src: https://get.helm.sh/helm-v{{helm.version}}-linux-amd64.tar.gz
         dest: /tmp/
         list_files: yes
         remote_src: yes
 
     - name: init helm
       shell: |
-        #tar -xzf /tmp/helm-v2.15.2-linux-amd64.tar.gz
+        #tar -xzf /tmp/helm-v{{helm.version}}-linux-amd64.tar.gz
         #ls /tmp
         #ls /tmp/linux-amd64
         chmod +x /tmp/linux-amd64/helm
@@ -45,14 +60,19 @@
           - kind: ServiceAccount
             name: default
             namespace: kube-system 
+    - name: patch raw.py in k8s module   ## workaround to https://github.com/ansible/ansible/issues/64004
+      patch:
+        src: "{{playbook_dir}}/files/raw.py.patch"
+        dest: /usr/lib/python2.7/site-packages/ansible/module_utils/k8s/raw.py
+
     - name: install addons
       k8s:                  ## yum install -y python2-openshift.noarch  in advance
         state: present
         src: "{{item.name}}"
         kubeconfig: /root/.kube/config
       with_items:                                  ## known issue: https://github.com/ansible/ansible/issues/64129
- #     - {name: "{{playbook_dir}}/addons/ingress-mandatory.yaml"}
- #     - {name: "{{playbook_dir}}/addons/ingress-service-nodeport.yaml"}
+      - {name: "{{playbook_dir}}/addons/ingress-mandatory.yaml"}
+      - {name: "{{playbook_dir}}/addons/ingress-service-nodeport.yaml"}
       - {name: "{{playbook_dir}}/addons/dashboard-recommended.yaml"}
     - name: Create serviceaccount for dashboard
       k8s:
@@ -79,21 +99,6 @@
             name: kubernetes-dashboard
             namespace: kube-system       
 
-    - name: install ansible modules
-      yum: 
-        name:
-          - python
-          - python2-openshift
-          - python2-pip.noarch
-    - name: update pip
-      pip:
-        name: pip
-        extra_args: --upgrade
-    - name: install pyhelm
-      pip:
-        name: pyhelm
-        state: present
-        extra_args: --upgrade
 
   #  -  k8s:                       ## known issue: https://github.com/ansible/ansible/issues/64129
   #      name: ingress-nginx
@@ -112,22 +117,22 @@
   #      src:  "{{playbook_dir}}/addons/ingress-service-nodeport.yaml"
   #      kubeconfig: /root/.kube/config
 
-    - name: install mandatory
-      shell: |
-        kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/mandatory.yaml
-      register: std
-    - debug:
-        var: std.stdout_lines
-    - debug:
-        var: std.stderr_lines
-    - name: install ingress
-      shell: |
-        kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/baremetal/service-nodeport.yaml
-      register: std
-    - debug:
-        var: std.stdout_lines
-    - debug:
-        var: std.stderr_lines
+#    - name: install mandatory
+#      shell: |
+#        kubectl apply -f {{playbook_dir}}/addons/ingress-mandatory.yaml
+#      register: std
+#    - debug:
+#        var: std.stdout_lines
+#    - debug:
+#        var: std.stderr_lines
+#    - name: install ingress
+#      shell: |
+#        kubectl apply -f {{playbook_dir}}/addons/ingress-service-nodeport.yaml
+#      register: std
+#    - debug:
+#        var: std.stdout_lines
+#    - debug:
+#        var: std.stderr_lines
 
     - name: verify ingress install
       shell: |

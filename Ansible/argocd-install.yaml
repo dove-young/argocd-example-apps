@@ -30,11 +30,12 @@
     - statefulset.yaml
 - name: get argocd install yaml
   get_url:
-    url: https://raw.githubusercontent.com/argoproj/argo-cd/v1.2.3/manifests/install.yaml
-    dest: "{{playbook_dir}}/argocd/argocd-1.2.3-install.yaml"
+    url: https://raw.githubusercontent.com/argoproj/argo-cd/v{{argocd.version}}/manifests/install.yaml
+    dest: "{{playbook_dir}}/argocd/argocd-{{argocd.version}}-install.yaml"
+    force: yes
 - name: patch argocd install yaml
   patch:
-    src: /tmp/argocd-1.2.3.patch
+    src: /tmp/argocd-{{argocd.version}}.patch
     basedir: "{{playbook_dir}}/argocd"
 - name: Create argocd namespace
   k8s:
@@ -45,14 +46,15 @@
     kubeconfig: /root/.kube/config 
 - k8s:
     state: present
-    src: "{{playbook_dir}}/argocd/argocd-1.2.3-install.yaml"
+    src: "{{playbook_dir}}/argocd/argocd-{{argocd.version}}-install.yaml"
     kubeconfig: /root/.kube/config
     namespace: argocd
 - name: argocd client
   get_url:
-    url: https://github.com/argoproj/argo-cd/releases/download/v1.2.3/argocd-linux-amd64
+    url: https://github.com/argoproj/argo-cd/releases/download/v{{argocd.version}}/argocd-linux-amd64
     dest: /usr/local/bin/argocd
     mode: 755
+    force: yes
 - name: check argocd client
   shell: |
       argocd help

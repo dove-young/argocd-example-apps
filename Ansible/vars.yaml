@@ -1,0 +1,20 @@
+docker_registry: "9.46.76.93:5000"
+k8s:
+  ingress_install_url: 'https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/mandatory.yaml'
+  ingress_service_install_url: 'https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/provider/baremetal/service-nodeport.yaml'
+  dashboard_install_url: 'https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta4/aio/deploy/recommended.yaml'
+helm:
+  version: 2.15.2
+tiller:
+  endpoint: 192.168.51.195
+  port: 44134
+argo:
+  version: 2.4.2
+argocd:
+  version: 1.2.3
+argocd_server_external: "{{ groups['worker'][0]}}"
+nfs_src: "{{playbook_dir}}/external-storage/nfs/deploy/kubernetes"
+events:
+  port: 9332
+  github_access_token: my-token
+  github_access_secret: my-secret

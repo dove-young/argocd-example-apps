@@ -1,0 +1,11 @@
+--- raw.py      2019-11-11 23:35:19.929572384 -0800
++++ /usr/lib/python2.7/site-packages/ansible/module_utils/k8s/raw.py    2019-11-11 23:34:38.382498139 -0800
+@@ -155,6 +155,8 @@
+
+         flattened_definitions = []
+         for definition in self.resource_definitions:
++           if not self.resource_definition:
++               continue
+             kind = definition.get('kind', self.kind)
+             api_version = definition.get('apiVersion', self.api_version)
+             if kind.endswith('List'):
