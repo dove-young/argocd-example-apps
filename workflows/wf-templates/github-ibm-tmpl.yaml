@@ -1,0 +1,194 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: github-ibm-templates
+spec: 
+  templates:
+  - name: check-out-from-ibm
+    inputs:
+      parameters:
+      - name: git-revision
+      - name: git-url
+      - name: workspace
+      - name: access-secret
+        value: github-access-ibm
+      artifacts:
+      - name: argo-source
+        path: "{{inputs.parameters.workspace}}"
+        git:
+          repo: "{{inputs.parameters.git-url}}"
+          revision: "{{inputs.parameters.git-revision}}"
+          usernameSecret:
+            name: "{{inputs.parameters.access-secret}}"
+            key: username
+          passwordSecret:
+            name: "{{inputs.parameters.access-secret}}"
+            key: token          
+    container:
+      image: 9.46.76.93:5000/default/alpine-utils:k8s
+      command: ["find", "{{inputs.parameters.workspace}}", "-maxdepth", "3"]
+  - name: build-image-from-github
+    inputs:
+      artifacts:
+      - name: argo-source
+        path: "{{inputs.parameters.workspace}}"
+        git:
+          repo: "{{inputs.parameters.git-url}}"
+          revision: "{{inputs.parameters.git-revision}}"
+          usernameSecret:
+            name: "{{inputs.parameters.access-secret}}"
+            key: username
+          passwordSecret:
+            name: "{{inputs.parameters.access-secret}}"
+            key: token 
+      parameters:
+      - name: image-dest
+      - name: docker-context
+      - name: git-revision
+      - name: git-url
+      - name: workspace
+      - name: access-secret
+        value: github-access-ibm
+      - name: image-kaniko
+        value: 9.46.76.93:5000/kaniko-project/executor:latest
+      - name: docker-registry
+        value: 9.46.76.93:5000
+      - name: dockerfile
+        value: Dockerfile
+      - name: verbosity
+        value: info        
+    container:
+      image: "{{inputs.parameters.image-kaniko}}"
+      imagePullPolicy: Always
+      command:
+        - /kaniko/executor
+      args:
+        - --dockerfile={{inputs.parameters.workspace}}/{{inputs.parameters.docker-context}}/{{inputs.parameters.dockerfile}}
+        - --destination={{inputs.parameters.image-dest}}
+        - --context={{inputs.parameters.workspace}}/{{inputs.parameters.docker-context}}
+        - --skip-tls-verify
+        - --digest-file=/dev/termination-log
+        - --insecure
+        - --insecure-registry="{{inputs.parameters.docker-registry}}"
+        - --skip-tls-verify-registry="{{inputs.parameters.docker-registry}}"
+        - --verbosity={{inputs.parameters.verbosity}}
+
+  - name: build-image-from-artifact-s3
+    inputs:
+      parameters:
+      - name: image-dest
+      - name: docker-context-s3-path
+      - name: docker-context
+      - name: minio-server
+        value: argo-artifacts.argo.svc:9000
+      - name: minio-access-secret
+        value: argo-artifacts
+      - name: docker-context-local-path
+      - name: image-kaniko
+        value: 9.46.76.93:5000/kaniko-project/executor:latest
+      - name: docker-registry
+        value: 9.46.76.93:5000
+      - name: dockerfile
+        value: Dockerfile
+      - name: verbosity
+        value: info
+      artifacts:
+      - name: docker-context-s3
+        path: "{{inputs.parameters.docker-context-local-path}}"
+        s3:
+          bucket: my-bucket
+          endpoint: "{{inputs.parameters.minio-server}}"
+          insecure: true
+          key: "{{inputs.parameters.docker-context-s3-path}}"
+          accessKeySecret:
+            name: "{{inputs.parameters.minio-access-secret}}"
+            key: accesskey
+          secretKeySecret:
+            name: "{{inputs.parameters.minio-access-secret}}"
+            key: secretkey
+    container:      
+      image: "{{inputs.parameters.image-kaniko}}"
+      securityContext:
+        privileged: true 
+      command:
+        - /kaniko/executor
+      args:
+        - --dockerfile={{inputs.parameters.docker-context-local-path}}/{{inputs.parameters.docker-context}}/{{inputs.parameters.dockerfile}}
+        - --destination={{inputs.parameters.image-dest}}
+        - --context={{inputs.parameters.docker-context-local-path}}/{{inputs.parameters.docker-context}}
+        - --skip-tls-verify
+        - --digest-file=/dev/termination-log
+        - --insecure
+        - --insecure-registry={{inputs.parameters.docker-registry}}
+        - --skip-tls-verify-registry={{inputs.parameters.docker-registry}}
+        - --verbosity={{inputs.parameters.verbosity}}
+
+  - name: build-image-from-artifact-s3-debug
+    inputs:
+      parameters:
+      - name: image-dest
+      - name: docker-context-s3-path
+      - name: docker-context
+      - name: minio-server
+        value: argo-artifacts.argo.svc:9000
+      - name: minio-access-secret
+        value: argo-artifacts
+      - name: docker-context-local-path
+      - name: image-kaniko
+        value: 9.46.76.93:5000/kaniko-project/executor:latest
+      - name: docker-registry
+        value: 9.46.76.93:5000
+      - name: dockerfile
+        value: Dockerfile
+      - name: verbosity
+        value: info
+      artifacts:
+      - name: docker-context-s3
+        path: "{{inputs.parameters.docker-context-local-path}}"
+        s3:
+          bucket: my-bucket
+          endpoint: "{{inputs.parameters.minio-server}}"
+          insecure: true
+          key: "{{inputs.parameters.docker-context-s3-path}}"
+          accessKeySecret:
+            name: "{{inputs.parameters.minio-access-secret}}"
+            key: accesskey
+          secretKeySecret:
+            name: "{{inputs.parameters.minio-access-secret}}"
+            key: secretkey
+    container:
+      image: 9.46.76.93:5000/default/alpine-utils:k8s
+      command: ["find", "{{inputs.parameters.docker-context-local-path}}/{{inputs.parameters.docker-context}}", "-maxdepth", "3"]
+  - name: build-image-from-github-debug
+    inputs:
+      artifacts:
+      - name: argo-source
+        path: "{{inputs.parameters.workspace}}"
+        git:
+          repo: "{{inputs.parameters.git-url}}"
+          revision: "{{inputs.parameters.git-revision}}"
+          usernameSecret:
+            name: "{{inputs.parameters.access-secret}}"
+            key: username
+          passwordSecret:
+            name: "{{inputs.parameters.access-secret}}"
+            key: token 
+      parameters:
+      - name: image-dest
+      - name: docker-context
+      - name: git-revision
+      - name: git-url
+      - name: workspace
+      - name: access-secret
+        value: github-access-ibm
+      - name: image-kaniko
+        value: 9.46.76.93:5000/kaniko-project/executor:latest
+      - name: docker-registry
+        value: 9.46.76.93:5000
+      - name: dockerfile
+        value: Dockerfile
+      - name: verbosity
+        value: info 
+    container:
+      image: 9.46.76.93:5000/default/alpine-utils:k8s
+      command: ["find", "{{inputs.parameters.workspace}}", "-maxdepth", "3"] 

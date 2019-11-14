@@ -1,0 +1,46 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: docker-build-example-
+spec:
+  entrypoint: build-images
+  volumes:
+  - name: vol
+    emptyDir: {} 
+  templates:
+  - name: build-images
+    steps:
+    - - name: build-from-s3
+        templateRef:
+          name: github-ibm-templates
+          template: build-image-from-artifact-s3
+        arguments:
+          parameters:
+            - name: image-dest
+              value: "9.46.76.93:5000/nodejs/sample-rest-api2-pets:0.2"
+            - name: docker-context-s3-path
+              value: "argo-example-97nhb/argo-example-97nhb-2708525999/nodejs-pets.tgz"
+            - name: docker-context-local-path
+              value: /src/nodejs-app
+            - name: docker-context
+              value: "."
+            - name: verbosity
+              value: info
+    - - name: build-from-github
+        templateRef:
+          name: github-ibm-templates
+          template: build-image-from-github
+        arguments:
+          parameters:
+            - name: git-revision
+              value: david
+            - name: git-url
+              value: https://github.ibm.com/yangboh/argocd-example-apps.git
+            - name: image-dest
+              value: "9.46.76.93:5000/test/alpine-utils:0.2"
+            - name: workspace
+              value: /src
+            - name: docker-context
+              value: "images/alpine-utils"
+            - name: verbosity
+              value: info

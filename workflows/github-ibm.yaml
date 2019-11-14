@@ -6,24 +6,35 @@ spec:
   entrypoint: check-out-from-ibm
   volumes:
   - name: vol
-    emptyDir: {}      
+    emptyDir: {} 
   templates:
   - name: check-out-from-ibm
-    inputs:
-      artifacts:
-      - name: argo-source
-        path: /src
-        git:
-          #repo: git@github.ibm.com:yangboh/argocd-example-apps.git
-          repo: https://github.ibm.com/yangboh/argocd-example-apps.git
-          #repo: https://github.com/dove-young/argocd-example-apps.git
-          revision: "david"
-          usernameSecret:
-            name: github-access-ibm
-            key: username
-          passwordSecret:
-            name: github-access-ibm
-            key: token          
-    container:
-      image: 9.46.76.93:5000/default/alpine-utils:k8s
-      command: ["find", "/src", "-maxdepth", "3"]
+    templateRef:
+      name: github-ibm-templates
+      template: check-out-from-ibm
+    arguments:
+      parameters:
+        - name: git-revision
+          value: david
+        - name: git-url
+          value: https://github.ibm.com/yangboh/argocd-example-apps.git
+        - name: workspace
+          value: /src
+#      
+#      artifacts:
+#      - name: argo-source
+#        path: /src
+#        git:
+#          #repo: git@github.ibm.com:yangboh/argocd-example-apps.git
+#          repo: https://github.ibm.com/yangboh/argocd-example-apps.git
+#          #repo: https://github.com/dove-young/argocd-example-apps.git
+#          revision: "david"
+#          usernameSecret:
+#            name: github-access-ibm
+#            key: username
+#          passwordSecret:
+#            name: github-access-ibm
+#            key: token          
+#    container:
+#      image: 9.46.76.93:5000/default/alpine-utils:k8s
+#      command: ["find", "/src", "-maxdepth", "3"]
