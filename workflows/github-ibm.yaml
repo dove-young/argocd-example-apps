@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: github-example-
+spec:
+  entrypoint: check-out-from-ibm
+  volumes:
+  - name: vol
+    emptyDir: {}      
+  templates:
+  - name: check-out-from-ibm
+    inputs:
+      artifacts:
+      - name: argo-source
+        path: /src
+        git:
+          #repo: git@github.ibm.com:yangboh/argocd-example-apps.git
+          repo: https://github.ibm.com/yangboh/argocd-example-apps.git
+          #repo: https://github.com/dove-young/argocd-example-apps.git
+          revision: "david"
+          usernameSecret:
+            name: github-access-ibm
+            key: username
+          passwordSecret:
+            name: github-access-ibm
+            key: token          
+    container:
+      image: 9.46.76.93:5000/default/alpine-utils:k8s
+      command: ["find", "/src", "-maxdepth", "3"]
