@@ -1,0 +1,30 @@
+- name: Clone nfs provider
+  tags:
+  - storage
+  git:
+    repo: 'https://github.com/kubernetes-incubator/external-storage.git'
+    dest: "{{playbook_dir}}/external-storage"
+    depth: 1
+    update: yes
+    force: yes
+- name: patch nfs provider
+  tags:
+  - storage
+  patch:
+    src: "{{playbook_dir}}/files/nfs-provider.patch"
+    basedir: "{{playbook_dir}}/external-storage"
+    strip: 1         # known issue: https://github.com/ansible/ansible/issues/64130
+- name: install nfs provider
+  tags:
+  - storage
+  k8s:                  ## yum install -y python2-openshift.noarch  in advance
+    state: present
+    src: "{{nfs_src}}/{{item}}"
+    kubeconfig: /root/.kube/config
+    namespace: default
+  with_list:
+    - class.yaml
+    - claim.yaml
+    - psp.yaml
+    - rbac.yaml
+    - statefulset.yaml

@@ -1,0 +1,9 @@
+- hosts: master
+  tasks:
+    - name: vars
+      include_vars: vars.yaml
+    - name: nfs-install
+      include: nfs-provider.yaml
+      tags:
+      - argocd
+      - nfs
