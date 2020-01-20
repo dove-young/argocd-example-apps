@@ -1,0 +1,13 @@
+- hosts: master worker
+  tasks:
+  - name: python init
+    yum:
+      name: python2-pip.noarch
+      state: present
+  - name: pip modules
+    pip:
+      name:
+      - pip
+      - openshift
+      - openshift-client-python
+      extra_args: "--upgrade"
